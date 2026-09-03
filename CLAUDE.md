@@ -43,6 +43,14 @@ Remotes: `origin` = Forgejo, `github` = public mirror.
   entity registers, so a unit added to `self.units` without its registers already in
   `self.data` lands in the device registry with the fallback model and no serial, and
   stays that way. `_read_unit_into` fills the data first.
+- **`ModbusIOException` is not an `OSError`.** pymodbus raises it when nothing answers
+  after its retries, and it escapes `except (ConnectionError, OSError)` entirely — the
+  config flow then returns HTTP 500 with the traceback only in the container log. Catch
+  `ModbusException` from `pymodbus.exceptions`.
+- **Two failures, two messages.** A refused TCP connect means the address or port is
+  wrong; an open socket with no valid reply means framing, slave address, or a second
+  master on the line. Telling the user to check framing when nothing is listening on the
+  port sends them looking in the wrong place.
 - **Integer fields with a range render as sliders.** A plain `vol.Range` on an int gives
   the user a slider, which is useless for a port or a slave address copied off a board.
   `number()` wraps `NumberSelector` in `BOX` mode; keep new numeric fields going through it.

@@ -24,7 +24,8 @@
       }
     },
     "error": {
-      "cannot_connect": "No answer. Check the gateway address, the framing, and that nothing else is polling the bus at the same moment."
+      "cannot_connect": "Nothing is listening on that address and port. Check the gateway address and port — serial gateways usually 8899 or 502, the emulator 5502.",
+      "no_reply": "The connection is up but the interface does not answer. Check the framing, the slave address (switch SW1), and that nothing else is polling the bus at the same moment."
     },
     "abort": {
       "already_configured": "This interface is already configured."

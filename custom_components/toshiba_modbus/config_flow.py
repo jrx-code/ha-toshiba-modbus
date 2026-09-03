@@ -11,6 +11,7 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 from pymodbus.client import AsyncModbusTcpClient
+from pymodbus.exceptions import ModbusException
 from pymodbus.framer import FramerType
 
 from . import registers as reg
@@ -53,13 +54,22 @@ STEP_USER = vol.Schema({
 })
 
 
+class NoReply(Exception):
+    """Gniazdo się otworzyło, ale interfejs nie odpowiedział poprawną ramką."""
+
+
 async def _discover(host: str, port: int, framing: str, slave: int, limit: int) -> dict[int, str]:
     """Nazwa modelu jest jedynym pewnym testem obecności - nieobecna jednostka
-    oddaje poprawną ramkę zer, nie wyjątek."""
+    oddaje poprawną ramkę zer, nie wyjątek.
+
+    Rozdzielamy dwie porażki, bo prowadzą do zupełnie innych rzeczy do sprawdzenia:
+    nieudane połączenie TCP to zły adres albo port, a brak odpowiedzi na otwartym
+    gnieździe to ramkowanie, adres slave albo drugi master na tej samej linii.
+    """
     framer = FramerType.RTU if framing == FRAMING_RTUOVERTCP else FramerType.SOCKET
     client = AsyncModbusTcpClient(host=host, port=port, framer=framer, timeout=DEFAULT_TIMEOUT)
     if not await client.connect():
-        raise ConnectionError("nie można połączyć się z bramką")
+        raise ConnectionError(f"nic nie nasłuchuje na {host}:{port}")
     found: dict[int, str] = {}
     try:
         for unit in range(1, limit + 1):
@@ -69,7 +79,7 @@ async def _discover(host: str, port: int, framing: str, slave: int, limit: int) 
                 device_id=slave,
             )
             if result.isError():
-                raise ConnectionError(f"interfejs odrzucił odczyt jednostki {unit}: {result}")
+                raise NoReply(f"interfejs nie odpowiedział na odczyt jednostki {unit}: {result}")
             name = reg.decode_ascii(list(result.registers))
             if name:
                 found[unit] = name
@@ -99,6 +109,10 @@ class ToshibaModbusConfigFlow(ConfigFlow, domain=DOMAIN):
                     ),
                     timeout=120,
                 )
+            except (NoReply, ModbusException):
+                # ModbusIOException ("no response after 3 retries") nie dziedziczy po
+                # OSError, więc bez tego wypadał aż do warstwy HTTP jako błąd 500.
+                errors["base"] = "no_reply"
             except (ConnectionError, asyncio.TimeoutError, OSError):
                 errors["base"] = "cannot_connect"
             else:

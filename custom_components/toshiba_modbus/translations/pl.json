@@ -24,7 +24,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Brak odpowiedzi. Sprawdź adres bramki, ramkowanie i to, czy nic innego nie odpytuje magistrali w tej samej chwili."
+      "cannot_connect": "Nic nie nasłuchuje pod tym adresem i portem. Sprawdź adres bramki i port — bramki szeregowe zwykle 8899 albo 502, emulator 5502.",
+      "no_reply": "Połączenie stoi, ale interfejs nie odpowiada. Sprawdź ramkowanie, adres slave (przełącznik SW1) i czy nic innego nie odpytuje magistrali w tej samej chwili."
     },
     "abort": {
       "already_configured": "Ten interfejs jest już dodany."

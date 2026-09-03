@@ -35,7 +35,7 @@ Then *Settings → Devices & services → Add integration → Toshiba RAC (Modbu
 
 | Field | Meaning |
 |---|---|
-| Gateway address / port | The RS-485 gateway in front of the interface, not the interface itself |
+| Gateway address / port | The RS-485 gateway in front of the interface, not the interface itself. Serial bridges typically listen on 8899 or 502; `tools/emulator.py` defaults to 5502 |
 | Framing | `rtuovertcp` for transparent bridges (Elfin EW11), `tcp` for gateways doing MBAP ⇄ RTU conversion (Waveshare mode 5) |
 | Slave address | Must equal switch **SW1** on the interface board |
 | Scan central addresses up to | One frame per address; units that do not answer are skipped |
