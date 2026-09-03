@@ -18,6 +18,7 @@ from pymodbus.framer import FramerType
 from . import registers as reg
 from .const import (
     CONF_DISCOVER_MAX,
+    CONF_EXCLUDED,
     CONF_FRAMING,
     CONF_RESCAN_INTERVAL,
     CONF_SLAVE,
@@ -77,6 +78,11 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
         self._rescan_every = 0.0 if rescan <= 0 else max(rescan, 60.0)
         self._rescan_due = 0.0
         self.last_rescan: float | None = None
+        # Adresy odznaczone przy dodawaniu wpisu. Bez tej listy skan w tle dołożyłby
+        # je z powrotem w ciągu kilku minut i wybór użytkownika nic by nie znaczył.
+        self.excluded: list[int] = sorted(
+            int(x) for x in entry.options.get(CONF_EXCLUDED, entry.data.get(CONF_EXCLUDED, []))
+        )
 
         scan = entry.options.get("scan_interval", entry.data.get("scan_interval", DEFAULT_SCAN_INTERVAL))
         super().__init__(
@@ -152,7 +158,10 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
             return data
 
     def _unknown_addresses(self) -> list[int]:
-        return [n for n in range(reg.ADDR_MIN, self.discover_max + 1) if n not in self.units]
+        return [
+            n for n in range(reg.ADDR_MIN, self.discover_max + 1)
+            if n not in self.units and n not in self.excluded
+        ]
 
     async def _read_unit_into(
         self, client: AsyncModbusTcpClient, unit: int, target: dict[str, dict[int, int]]
@@ -312,6 +321,7 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
             "frames_per_cycle": self.frames_per_cycle,
             "discover_max": self.discover_max,
             "pending_addresses": self._unknown_addresses(),
+            "excluded": self.excluded,
             "frames_last": self.frames_last,
             "counters": dict(self.counters),
             "plan": [{"space": s, "start": a, "count": c} for s, a, c in self._plan],

@@ -12,6 +12,7 @@ CONF_UNITS: Final = "units"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
 CONF_DISCOVER_MAX: Final = "discover_max"
 CONF_RESCAN_INTERVAL: Final = "rescan_interval"
+CONF_EXCLUDED: Final = "excluded"
 
 FRAMING_RTUOVERTCP: Final = "rtuovertcp"
 FRAMING_TCP: Final = "tcp"

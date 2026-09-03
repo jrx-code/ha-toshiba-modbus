@@ -21,6 +21,13 @@
       "names": {
         "title": "Nazwy jednostek",
         "description": "Znalezione: {found}. W rejestrach jest tylko model, więc nazwy pomieszczeń trzeba podać tutaj."
+      },
+      "select": {
+        "title": "Które jednostki dodać",
+        "description": "Interfejs zgłosił {count} jednostek. Odznacz te, które nie należą do tej instalacji — pominięte adresy nie wrócą przy skanowaniu w tle ani po naciśnięciu przycisku, dopóki nie przywrócisz ich w opcjach.",
+        "data": {
+          "include": "Jednostki do dodania"
+        }
       }
     },
     "error": {
@@ -38,7 +45,8 @@
         "data": {
           "scan_interval": "Odpytywanie co (s)",
           "rescan_interval": "Szukaj nowych jednostek co (s), 0 = tylko przyciskiem",
-          "discover_max": "Przeszukaj adresy centralne do"
+          "discover_max": "Przeszukaj adresy centralne do",
+          "restore": "Przywróć pominięte jednostki"
         }
       }
     }

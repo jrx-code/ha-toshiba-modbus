@@ -16,7 +16,7 @@ from pymodbus.framer import FramerType
 
 from . import registers as reg
 from .const import (
-    CONF_DISCOVER_MAX, CONF_FRAMING, CONF_RESCAN_INTERVAL, CONF_SCAN_INTERVAL,
+    CONF_DISCOVER_MAX, CONF_EXCLUDED, CONF_FRAMING, CONF_RESCAN_INTERVAL, CONF_SCAN_INTERVAL,
     CONF_SLAVE, CONF_UNITS, DEFAULT_DISCOVER_MAX, DEFAULT_PORT,
     DEFAULT_RESCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DEFAULT_SLAVE, DEFAULT_TIMEOUT,
     DOMAIN, FRAMING_RTUOVERTCP, FRAMINGS,
@@ -94,6 +94,7 @@ class ToshibaModbusConfigFlow(ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         self._data: dict[str, Any] = {}
         self._found: dict[int, str] = {}
+        self._include: list[int] = []
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
@@ -121,31 +122,74 @@ class ToshibaModbusConfigFlow(ConfigFlow, domain=DOMAIN):
                     # Interfejs odpowiada, ale magistrala Uh jest pusta - to jest
                     # stan poprawny przed montażem adapterów RAC. Wpis powstaje
                     # z samym interfejsem, jednostki dojdą, kiedy się zgłoszą.
-                    return self._create({})
-                return await self.async_step_names()
+                    return self._create({}, [], [])
+                return await self.async_step_select()
         return self.async_show_form(step_id="user", data_schema=STEP_USER, errors=errors)
+
+    async def async_step_select(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Które z wykrytych jednostek w ogóle dodać.
+
+        Interfejs obsługuje 64 adresy centralne i nie wszystkie muszą należeć do tej
+        instalacji. Pominięte adresy zapamiętujemy, inaczej skan w tle dołożyłby je
+        z powrotem w ciągu kilku minut.
+        """
+        if user_input is not None:
+            self._include = sorted(int(x) for x in user_input["include"])
+            if not self._include:
+                return self._create({}, [], sorted(self._found))
+            return await self.async_step_names()
+
+        options = [
+            selector.SelectOptionDict(value=str(u), label=f"{u} — {model}")
+            for u, model in sorted(self._found.items())
+        ]
+        schema = vol.Schema({
+            vol.Optional("include", default=[str(u) for u in sorted(self._found)]):
+                selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.LIST,
+                    )
+                ),
+        })
+        return self.async_show_form(
+            step_id="select",
+            data_schema=schema,
+            description_placeholders={"count": str(len(self._found))},
+        )
 
     async def async_step_names(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Nazwy pomieszczeń - w rejestrach jest tylko model, nie ma gdzie ich wziąć."""
         if user_input is not None:
-            return self._create({str(u): user_input[f"unit_{u}"] for u in sorted(self._found)})
+            return self._create(
+                {str(u): user_input[f"unit_{u}"] for u in self._include},
+                self._include,
+                [u for u in sorted(self._found) if u not in self._include],
+            )
         schema = vol.Schema({
             vol.Required(f"unit_{u}", default=f"Jednostka {u}"): str
-            for u in sorted(self._found)
+            for u in self._include
         })
         return self.async_show_form(
             step_id="names",
             data_schema=schema,
             description_placeholders={
-                "found": ", ".join(f"{u}: {m}" for u, m in sorted(self._found.items()))
+                "found": ", ".join(f"{u}: {self._found[u]}" for u in self._include)
             },
         )
 
-    def _create(self, names: dict[str, str]) -> ConfigFlowResult:
+    def _create(
+        self, names: dict[str, str], include: list[int], exclude: list[int]
+    ) -> ConfigFlowResult:
         data = dict(self._data)
-        data[CONF_UNITS] = sorted(self._found)
+        data[CONF_UNITS] = sorted(include)
         data["names"] = names
-        return self.async_create_entry(title=f"Toshiba ({self._data[CONF_HOST]})", data=data)
+        return self.async_create_entry(
+            title=f"Toshiba ({self._data[CONF_HOST]})",
+            data=data,
+            options={CONF_EXCLUDED: sorted(exclude)},
+        )
 
     @staticmethod
     @callback
@@ -155,8 +199,17 @@ class ToshibaModbusConfigFlow(ConfigFlow, domain=DOMAIN):
 
 class ToshibaModbusOptionsFlow(OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        excluded = sorted(
+            int(x) for x in self.config_entry.options.get(CONF_EXCLUDED, [])
+        )
         if user_input is not None:
-            return self.async_create_entry(data=user_input)
+            # Przywrócone adresy znikają z listy wykluczeń; skan w tle albo przycisk
+            # znajdzie je przy najbliższej okazji. Reszta wykluczeń musi przetrwać
+            # zapis opcji, bo async_create_entry podmienia je w całości.
+            restored = {int(x) for x in user_input.pop("restore", [])}
+            options = dict(user_input)
+            options[CONF_EXCLUDED] = sorted(a for a in excluded if a not in restored)
+            return self.async_create_entry(data=options)
         def now(key, fallback):
             return self.config_entry.options.get(
                 key, self.config_entry.data.get(key, fallback)
@@ -171,5 +224,17 @@ class ToshibaModbusOptionsFlow(OptionsFlow):
                              default=now(CONF_RESCAN_INTERVAL, DEFAULT_RESCAN_INTERVAL)): number(0, 3600, "s"),
                 vol.Required(CONF_DISCOVER_MAX,
                              default=now(CONF_DISCOVER_MAX, DEFAULT_DISCOVER_MAX)): number(1, reg.ADDR_MAX),
+                **({
+                    vol.Optional("restore", default=[]): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                selector.SelectOptionDict(value=str(a), label=f"adres {a}")
+                                for a in excluded
+                            ],
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.LIST,
+                        )
+                    )
+                } if excluded else {}),
             }),
         )

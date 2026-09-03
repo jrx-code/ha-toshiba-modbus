@@ -43,6 +43,13 @@ Remotes: `origin` = Forgejo, `github` = public mirror.
   entity registers, so a unit added to `self.units` without its registers already in
   `self.data` lands in the device registry with the fallback model and no serial, and
   stays that way. `_read_unit_into` fills the data first.
+- **A skipped unit has to be remembered, not just skipped.** Addresses cleared in the
+  select step go to `options["excluded"]`, and `_unknown_addresses()` filters them out.
+  Without that the background rescan would put them back within minutes and the choice
+  would mean nothing.
+- **The options flow replaces options wholesale.** `async_create_entry(data=...)` in an
+  OptionsFlow overwrites everything, so `excluded` has to be rebuilt into the payload on
+  every save or it silently disappears.
 - **`ModbusIOException` is not an `OSError`.** pymodbus raises it when nothing answers
   after its retries, and it escapes `except (ConnectionError, OSError)` entirely — the
   config flow then returns HTTP 500 with the traceback only in the container log. Catch
