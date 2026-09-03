@@ -1,5 +1,8 @@
 """Constants for the Toshiba Modbus integration."""
 
+# Copyright 2026 JI ENGINEERING
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from typing import Final

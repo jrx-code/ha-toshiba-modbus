@@ -19,6 +19,9 @@ repository. Both describe the same hardware; ``tests/test_map_parity.py`` fails
 when they drift apart.
 """
 
+# Copyright 2026 JI ENGINEERING
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from typing import Final

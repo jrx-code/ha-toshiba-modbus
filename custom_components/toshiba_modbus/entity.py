@@ -1,5 +1,8 @@
 """Shared entity base: one device per indoor unit, availability from presence."""
 
+# Copyright 2026 JI ENGINEERING
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from homeassistant.helpers.device_registry import DeviceInfo

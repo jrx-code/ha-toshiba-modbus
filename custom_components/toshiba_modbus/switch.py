@@ -1,5 +1,8 @@
 """Special RAC functions and the remote-controller lock bits."""
 
+# Copyright 2026 JI ENGINEERING
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from dataclasses import dataclass

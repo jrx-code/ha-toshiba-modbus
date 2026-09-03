@@ -1,5 +1,8 @@
 """Polling coordinator: one client, merged reads, one lock over the bus."""
 
+# Copyright 2026 JI ENGINEERING
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import asyncio

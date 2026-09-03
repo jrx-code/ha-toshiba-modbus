@@ -1,5 +1,8 @@
 """Config flow: connect, then find the indoor units that actually answer."""
 
+# Copyright 2026 JI ENGINEERING
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import asyncio

@@ -18,6 +18,9 @@ Domyślnie jednostka 3 jest nieobecna, żeby było na czym sprawdzić, że encje
 schodzą w `unavailable` zamiast pokazywać zera jako prawdziwe dane.
 """
 
+# Copyright 2026 JI ENGINEERING
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import argparse

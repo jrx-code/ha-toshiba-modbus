@@ -179,4 +179,28 @@ panel's map when that checkout is present, so the two cannot drift apart unnotic
 
 ## License
 
-MIT.
+**Apache License 2.0.** Copyright 2026 JI ENGINEERING.
+
+The point of picking Apache over MIT here is `NOTICE`: section 4(d) obliges any
+derivative work you distribute to carry a readable copy of the attribution notices
+from that file — in its own `NOTICE`, in the documentation, or wherever third-party
+notices normally appear in the product. So a fork keeps the credit whether or not
+anyone opens `LICENSE`.
+
+What redistribution requires, in short:
+
+- ship a copy of the licence (section 4a);
+- mark the files you changed (4b);
+- keep the copyright, patent, trademark and attribution notices found in the source (4c);
+- carry the contents of `NOTICE` (4d).
+
+In exchange the licence grants an explicit patent licence (section 3), which MIT
+does not. Every source file carries `SPDX-License-Identifier: Apache-2.0`, so the
+terms travel with the file even out of context.
+
+Toshiba and the Toshiba logo are trademarks of Toshiba Corporation. This project
+is not affiliated with, authorised by or endorsed by it; the artwork in
+`custom_components/toshiba_modbus/brand/` is built from the manufacturer's own
+product images and identifies the hardware the integration talks to.
+
+`pymodbus`, the only runtime dependency, is BSD-3-Clause.

@@ -1,5 +1,8 @@
 """Diagnostics: the read plan and the raw registers behind every entity."""
 
+# Copyright 2026 JI ENGINEERING
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from typing import Any

@@ -1,5 +1,8 @@
 """Toshiba RAC over the BMS-IFMB1280U-E Modbus interface."""
 
+# Copyright 2026 JI ENGINEERING
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry

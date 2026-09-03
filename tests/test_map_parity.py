@@ -8,6 +8,9 @@ czytająca sąsiednią jednostkę.
 Test pomija się sam, gdy checkout panelu nie leży obok.
 """
 
+# Copyright 2026 JI ENGINEERING
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import importlib.util

@@ -1,5 +1,8 @@
 """Reguły mapy, które łatwo złamać przy dopisywaniu pól."""
 
+# Copyright 2026 JI ENGINEERING
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 import importlib.util
