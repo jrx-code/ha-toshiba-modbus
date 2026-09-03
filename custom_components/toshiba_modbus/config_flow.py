@@ -14,9 +14,10 @@ from pymodbus.framer import FramerType
 
 from . import registers as reg
 from .const import (
-    CONF_DISCOVER_MAX, CONF_FRAMING, CONF_SCAN_INTERVAL, CONF_SLAVE, CONF_UNITS,
-    DEFAULT_DISCOVER_MAX, DEFAULT_PORT, DEFAULT_SCAN_INTERVAL, DEFAULT_SLAVE,
-    DEFAULT_TIMEOUT, DOMAIN, FRAMING_RTUOVERTCP, FRAMINGS,
+    CONF_DISCOVER_MAX, CONF_FRAMING, CONF_RESCAN_INTERVAL, CONF_SCAN_INTERVAL,
+    CONF_SLAVE, CONF_UNITS, DEFAULT_DISCOVER_MAX, DEFAULT_PORT,
+    DEFAULT_RESCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DEFAULT_SLAVE, DEFAULT_TIMEOUT,
+    DOMAIN, FRAMING_RTUOVERTCP, FRAMINGS,
 )
 
 STEP_USER = vol.Schema({
@@ -28,6 +29,8 @@ STEP_USER = vol.Schema({
         vol.All(int, vol.Range(min=1, max=reg.ADDR_MAX)),
     vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL):
         vol.All(int, vol.Range(min=10, max=600)),
+    vol.Required(CONF_RESCAN_INTERVAL, default=DEFAULT_RESCAN_INTERVAL):
+        vol.All(int, vol.Range(min=0, max=3600)),
 })
 
 
@@ -80,22 +83,19 @@ class ToshibaModbusConfigFlow(ConfigFlow, domain=DOMAIN):
             except (ConnectionError, asyncio.TimeoutError, OSError):
                 errors["base"] = "cannot_connect"
             else:
+                self._data = dict(user_input)
                 if not self._found:
-                    errors["base"] = "no_units"
-                else:
-                    self._data = dict(user_input)
-                    return await self.async_step_names()
+                    # Interfejs odpowiada, ale magistrala Uh jest pusta - to jest
+                    # stan poprawny przed montażem adapterów RAC. Wpis powstaje
+                    # z samym interfejsem, jednostki dojdą, kiedy się zgłoszą.
+                    return self._create({})
+                return await self.async_step_names()
         return self.async_show_form(step_id="user", data_schema=STEP_USER, errors=errors)
 
     async def async_step_names(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Nazwy pomieszczeń - w rejestrach jest tylko model, nie ma gdzie ich wziąć."""
         if user_input is not None:
-            data = dict(self._data)
-            data[CONF_UNITS] = sorted(self._found)
-            data["names"] = {str(u): user_input[f"unit_{u}"] for u in sorted(self._found)}
-            return self.async_create_entry(
-                title=f"Toshiba ({self._data[CONF_HOST]})", data=data
-            )
+            return self._create({str(u): user_input[f"unit_{u}"] for u in sorted(self._found)})
         schema = vol.Schema({
             vol.Required(f"unit_{u}", default=f"Jednostka {u}"): str
             for u in sorted(self._found)
@@ -108,6 +108,12 @@ class ToshibaModbusConfigFlow(ConfigFlow, domain=DOMAIN):
             },
         )
 
+    def _create(self, names: dict[str, str]) -> ConfigFlowResult:
+        data = dict(self._data)
+        data[CONF_UNITS] = sorted(self._found)
+        data["names"] = names
+        return self.async_create_entry(title=f"Toshiba ({self._data[CONF_HOST]})", data=data)
+
     @staticmethod
     @callback
     def async_get_options_flow(entry: ConfigEntry) -> OptionsFlow:
@@ -118,14 +124,20 @@ class ToshibaModbusOptionsFlow(OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
             return self.async_create_entry(data=user_input)
-        current = self.config_entry.options.get(
-            CONF_SCAN_INTERVAL,
-            self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-        )
+        def now(key, fallback):
+            return self.config_entry.options.get(
+                key, self.config_entry.data.get(key, fallback)
+            )
+
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
-                vol.Required(CONF_SCAN_INTERVAL, default=current):
+                vol.Required(CONF_SCAN_INTERVAL, default=now(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)):
                     vol.All(int, vol.Range(min=10, max=600)),
+                vol.Required(CONF_RESCAN_INTERVAL,
+                             default=now(CONF_RESCAN_INTERVAL, DEFAULT_RESCAN_INTERVAL)):
+                    vol.All(int, vol.Range(min=0, max=3600)),
+                vol.Required(CONF_DISCOVER_MAX, default=now(CONF_DISCOVER_MAX, DEFAULT_DISCOVER_MAX)):
+                    vol.All(int, vol.Range(min=1, max=reg.ADDR_MAX)),
             }),
         )

@@ -7,11 +7,12 @@ from dataclasses import dataclass
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import registers as reg
-from .const import DOMAIN
+from .const import DOMAIN, SIGNAL_NEW_UNIT
 from .coordinator import ToshibaModbusCoordinator
 from .entity import ToshibaUnitEntity
 
@@ -48,6 +49,18 @@ async def async_setup_entry(
             for index, name in enumerate(reg.RC_LOCK_BITS)
         )
     async_add_entities(entities)
+
+
+    @callback
+    def _new_unit(unit: int) -> None:
+        new = [ToshibaFunctionSwitch(coordinator, unit, d) for d in FUNCTION_SWITCHES]
+        new += [ToshibaLockSwitch(coordinator, unit, i, n)
+                for i, n in enumerate(reg.RC_LOCK_BITS)]
+        async_add_entities(new)
+
+    entry.async_on_unload(
+        async_dispatcher_connect(hass, SIGNAL_NEW_UNIT.format(entry.entry_id), _new_unit)
+    )
 
 
 class ToshibaFunctionSwitch(ToshibaUnitEntity, SwitchEntity):

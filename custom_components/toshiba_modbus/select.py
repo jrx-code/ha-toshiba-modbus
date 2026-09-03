@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import registers as reg
-from .const import DOMAIN
+from .const import DOMAIN, SIGNAL_NEW_UNIT
 from .coordinator import ToshibaModbusCoordinator
 from .entity import ToshibaUnitEntity
 
@@ -22,6 +23,15 @@ async def async_setup_entry(
 ) -> None:
     coordinator: ToshibaModbusCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(ToshibaSaveSelect(coordinator, unit) for unit in coordinator.units)
+
+
+    @callback
+    def _new_unit(unit: int) -> None:
+        async_add_entities([ToshibaSaveSelect(coordinator, unit)])
+
+    entry.async_on_unload(
+        async_dispatcher_connect(hass, SIGNAL_NEW_UNIT.format(entry.entry_id), _new_unit)
+    )
 
 
 class ToshibaSaveSelect(ToshibaUnitEntity, SelectEntity):

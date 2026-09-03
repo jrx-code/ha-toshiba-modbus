@@ -10,7 +10,8 @@
           "framing": "Framing",
           "slave": "Slave address (SW1)",
           "discover_max": "Scan central addresses up to",
-          "scan_interval": "Poll every (s)"
+          "scan_interval": "Poll every (s)",
+          "rescan_interval": "Look for new units every (s), 0 = button only"
         },
         "data_description": {
           "framing": "rtuovertcp for transparent bridges (Elfin EW11), tcp for gateways converting MBAP (Waveshare mode 5).",
@@ -23,8 +24,7 @@
       }
     },
     "error": {
-      "cannot_connect": "No answer. Check the gateway address, the framing, and that nothing else is polling the bus at the same moment.",
-      "no_units": "The gateway answers but no indoor unit reported in. A model name full of zeros means no unit on the Uh bus."
+      "cannot_connect": "No answer. Check the gateway address, the framing, and that nothing else is polling the bus at the same moment."
     },
     "abort": {
       "already_configured": "This interface is already configured."
@@ -35,7 +35,9 @@
       "init": {
         "title": "Polling",
         "data": {
-          "scan_interval": "Poll every (s)"
+          "scan_interval": "Poll every (s)",
+          "rescan_interval": "Look for new units every (s), 0 = button only",
+          "discover_max": "Scan central addresses up to"
         }
       }
     }
@@ -165,6 +167,9 @@
     "button": {
       "filter_reset": {
         "name": "Reset filter sign"
+      },
+      "discover_units": {
+        "name": "Find indoor units"
       }
     }
   }

@@ -10,7 +10,8 @@
           "framing": "Ramkowanie",
           "slave": "Adres slave (SW1)",
           "discover_max": "Przeszukaj adresy centralne do",
-          "scan_interval": "Odpytywanie co (s)"
+          "scan_interval": "Odpytywanie co (s)",
+          "rescan_interval": "Szukaj nowych jednostek co (s), 0 = tylko przyciskiem"
         },
         "data_description": {
           "framing": "rtuovertcp dla mostów przezroczystych (Elfin EW11), tcp dla bramek konwertujących MBAP (Waveshare w trybie 5).",
@@ -23,8 +24,7 @@
       }
     },
     "error": {
-      "cannot_connect": "Brak odpowiedzi. Sprawdź adres bramki, ramkowanie i to, czy nic innego nie odpytuje magistrali w tej samej chwili.",
-      "no_units": "Bramka odpowiada, ale żadna jednostka się nie zgłosiła. Nazwa modelu wypełniona zerami oznacza brak jednostki na magistrali Uh."
+      "cannot_connect": "Brak odpowiedzi. Sprawdź adres bramki, ramkowanie i to, czy nic innego nie odpytuje magistrali w tej samej chwili."
     },
     "abort": {
       "already_configured": "Ten interfejs jest już dodany."
@@ -35,7 +35,9 @@
       "init": {
         "title": "Odpytywanie",
         "data": {
-          "scan_interval": "Odpytywanie co (s)"
+          "scan_interval": "Odpytywanie co (s)",
+          "rescan_interval": "Szukaj nowych jednostek co (s), 0 = tylko przyciskiem",
+          "discover_max": "Przeszukaj adresy centralne do"
         }
       }
     }
@@ -165,6 +167,9 @@
     "button": {
       "filter_reset": {
         "name": "Kasuj sygnalizację filtra"
+      },
+      "discover_units": {
+        "name": "Szukaj jednostek wewnętrznych"
       }
     }
   }

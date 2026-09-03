@@ -9,10 +9,11 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
+from .const import DOMAIN, SIGNAL_NEW_UNIT
 from .coordinator import ToshibaModbusCoordinator
 from .entity import ToshibaInterfaceEntity, ToshibaUnitEntity
 
@@ -57,6 +58,15 @@ async def async_setup_entry(
     ]
     entities.append(ToshibaInterfaceConnectivity(coordinator))
     async_add_entities(entities)
+
+
+    @callback
+    def _new_unit(unit: int) -> None:
+        async_add_entities(ToshibaBinarySensor(coordinator, unit, d) for d in BINARY_SENSORS)
+
+    entry.async_on_unload(
+        async_dispatcher_connect(hass, SIGNAL_NEW_UNIT.format(entry.entry_id), _new_unit)
+    )
 
 
 class ToshibaBinarySensor(ToshibaUnitEntity, BinarySensorEntity):

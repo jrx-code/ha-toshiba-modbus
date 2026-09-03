@@ -36,6 +36,19 @@ Remotes: `origin` = Forgejo, `github` = public mirror.
   interface needs a poll cycle before the readback registers change.
 - **`hvac_action` comes from the compressor bit** (`10004`), not from the mode
   register. Mode says what was asked for, the bit says what the unit is doing.
+- **Zero indoor units is a valid config entry.** The interface answers while the Uh bus
+  is empty, which is exactly the state before the adapters are fitted. Refusing the entry
+  there means the interface cannot be added until an installer has been on site.
+- **Read a newly discovered unit before dispatching it.** `device_info` is read when the
+  entity registers, so a unit added to `self.units` without its registers already in
+  `self.data` lands in the device registry with the fallback model and no serial, and
+  stays that way. `_read_unit_into` fills the data first.
+- **`vol.Any` cannot be serialised into a config-flow form.** HA raises
+  `ValueError: Unable to convert schema` and the flow returns HTTP 500 with the traceback
+  only in the container log. Use a plain `vol.Range` and handle special values in code.
+- **`/api/error_log` is 404 on this HAOS build.** The body of the 404 contains no
+  traceback, so grepping it for errors always looks clean. Read
+  `docker logs homeassistant` instead.
 - **Changing `entity_registry_enabled_default` does not re-enable existing entities.**
   The registry keeps `disabled_by: integration` from the install that created them, so
   the new default only reaches fresh installs. Re-enable the old ones over the

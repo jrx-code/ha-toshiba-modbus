@@ -10,11 +10,12 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfPower, UnitOfTemperature, UnitOfTime
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import registers as reg
-from .const import DOMAIN
+from .const import DOMAIN, SIGNAL_NEW_UNIT
 from .coordinator import ToshibaModbusCoordinator
 from .entity import ToshibaInterfaceEntity, ToshibaUnitEntity
 
@@ -112,6 +113,15 @@ async def async_setup_entry(
     ]
     entities.extend(ToshibaInterfaceSensor(coordinator, desc) for desc in INTERFACE_SENSORS)
     async_add_entities(entities)
+
+
+    @callback
+    def _new_unit(unit: int) -> None:
+        async_add_entities(ToshibaSensor(coordinator, unit, d) for d in SENSORS)
+
+    entry.async_on_unload(
+        async_dispatcher_connect(hass, SIGNAL_NEW_UNIT.format(entry.entry_id), _new_unit)
+    )
 
 
 class ToshibaSensor(ToshibaUnitEntity, SensorEntity):

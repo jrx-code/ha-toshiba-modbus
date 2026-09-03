@@ -44,6 +44,23 @@ Setup reads the model-name registers of each candidate address and keeps the one
 that answer with a non-empty string. You then name the rooms — the registers carry
 the model, never a location.
 
+**An interface with no indoor units is a valid setup.** Before the RAC adapters are
+fitted the Uh bus is empty and every address answers with zeros; the entry is created
+anyway, with the interface as its only device. Units join later, as they appear.
+
+## Units that appear later
+
+Adapters get fitted one at a time, so discovery is not a one-off event:
+
+- **Find indoor units** — a button on the interface device. Press it after fitting an
+  adapter instead of waiting.
+- **Background rescan** — every `rescan_interval` seconds (default 300) the integration
+  scans only the addresses it does not know yet, so once the full set is found it costs
+  nothing. Set the interval to `0` to leave the button as the only route.
+
+A unit found this way is read once immediately, then its device and entities are created
+— without a restart and without reloading the entry.
+
 ## Entities per indoor unit
 
 - `climate` — power, setpoint (17–30 °C, 0.5 °C), mode, fan, swing, plus `hvac_action`

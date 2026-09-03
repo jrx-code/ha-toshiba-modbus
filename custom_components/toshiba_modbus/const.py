@@ -11,6 +11,7 @@ CONF_SLAVE: Final = "slave"
 CONF_UNITS: Final = "units"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
 CONF_DISCOVER_MAX: Final = "discover_max"
+CONF_RESCAN_INTERVAL: Final = "rescan_interval"
 
 FRAMING_RTUOVERTCP: Final = "rtuovertcp"
 FRAMING_TCP: Final = "tcp"
@@ -23,7 +24,13 @@ DEFAULT_TIMEOUT: Final = 5.0
 # Ile adresów centralnych przeszukać przy dodawaniu wpisu. Manual dopuszcza 1-64,
 # ale skan to jedna ramka na adres, więc domyślnie tylko początek zakresu.
 DEFAULT_DISCOVER_MAX: Final = 8
+# Jak często szukać jednostek, które jeszcze się nie zgłosiły. Skanowane są tylko
+# adresy nieznane, więc po znalezieniu kompletu ten interwał nic nie kosztuje.
+DEFAULT_RESCAN_INTERVAL: Final = 300
 
 MANUFACTURER: Final = "Toshiba"
 INTERFACE_MODEL: Final = "BMS-IFMB1280U-E"
 ADAPTER_MODEL: Final = "TCB-SSRL011UUP-E"
+
+# Nowa jednostka wykryta w trakcie pracy - platformy dokładają dla niej encje.
+SIGNAL_NEW_UNIT: Final = "toshiba_modbus_new_unit_{}"
