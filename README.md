@@ -26,10 +26,13 @@ this map runs straight into:
 ## Install
 
 **HACS** — add this repository as a custom repository of type *Integration*,
-install, restart Home Assistant.
+install, restart Home Assistant. HACS pulls `toshiba_modbus.zip` from the release and
+unpacks it into `custom_components/toshiba_modbus`, so an install is one download
+rather than thirty.
 
-**Manually** — copy `custom_components/toshiba_modbus` into your `config/custom_components`
-and restart.
+**Manually** — download `toshiba_modbus-<version>.zip` from the release, unpack it over
+your `config/` directory (it already carries the `custom_components/toshiba_modbus/`
+path), and restart.
 
 Then *Settings → Devices & services → Add integration → Toshiba RAC (Modbus)*.
 
