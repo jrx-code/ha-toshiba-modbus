@@ -10,6 +10,12 @@ indoor unit. No cloud, no vendor account, no polling of a remote API.
 indoor unit --UART(CN50)--> RAC I/F --Uh line--> BMS-IFMB1280U-E --RS-485--> gateway --TCP--> HA
 ```
 
+![Integration page: two interfaces, each with the indoor units below it](docs/images/integration.png)
+
+One device per interface and one per indoor unit, hung under it with `via_device`.
+Model and serial number come from registers `30007` and `30015`, not from the
+configuration.
+
 ## Why not the built-in `modbus` integration
 
 It works, and for a first light it is the faster route. It also has three limits
@@ -59,6 +65,11 @@ remote-lock switches all render as the generic tablet glyph and the readback sen
 eye. Icon names are validated against `/static/mdi/iconList.json` served by the running
 instance; an unknown name renders as blank space, not an error.
 
+![Device page: climate control, switches, readback sensors and the remote-lock block](docs/images/device.png)
+
+The badge in the corner of that page is `logo.png`; the small mark next to
+"Toshiba RAC (Modbus)" in the device-info card is `icon.png`.
+
 ## Configuration
 
 | Field | Meaning |
@@ -67,6 +78,11 @@ instance; an unknown name renders as blank space, not an error.
 | Framing | `rtuovertcp` for transparent bridges (Elfin EW11), `tcp` for gateways doing MBAP ⇄ RTU conversion (Waveshare mode 5) |
 | Slave address | Must equal switch **SW1** on the interface board |
 | Scan central addresses up to | One frame per address; units that do not answer are skipped |
+
+<p>
+<img src="docs/images/setup-connection.png" alt="First step: gateway address, port, framing, slave address" width="49%">
+<img src="docs/images/setup-units.png" alt="Second step: one checkbox and one name field per discovered unit" width="49%">
+</p>
 
 Setup reads the model name of each candidate address, then the serial number of the ones
 that answer, and puts the whole result in **one dialog**: a checkbox per unit labelled
