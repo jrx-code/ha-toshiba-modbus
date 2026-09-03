@@ -86,9 +86,13 @@ Remotes: `origin` = Forgejo, `github` = public mirror.
 - **The connectivity entity overrides `available` to `True`.** An entity that reports
   connectivity has to survive the loss of it, otherwise it goes unavailable exactly
   when it has something to say.
-- **Brand icons are local.** `brand/icon.png` + `@2x` (and dark variants) inside the
-  component; no PR to `home-assistant/brands`, no manifest key. Changing them needs
-  a full HA restart, not a config-entry reload.
+- **Brand icons are local, and no restart is needed.** `brand/` inside the component;
+  no PR to `home-assistant/brands`, no manifest key. `/api/brands/integration/<domain>/…`
+  reads from disk on every request, so a replaced file is served immediately and only the
+  browser cache holds the old one. The slot map is in the README; the one that surprises
+  is the badge in the corner of a device page, which takes `logo.png`, not the icon. When
+  `logo.png` is missing HA serves the bytes of `icon.png` under that name, so the two look
+  identical and the difference stays invisible until both exist.
 - **Test on the spare HA instance first, never on the production one.** The deploy path
   there is the SSH add-on with a password, which needs `-o PubkeyAuthentication=no`
   because `Host *` in the local ssh config disables password auth. Addresses are in the

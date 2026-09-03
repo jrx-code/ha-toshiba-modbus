@@ -1,3 +1,5 @@
+<img src="custom_components/toshiba_modbus/brand/logo.png" alt="Toshiba" width="420">
+
 # Toshiba RAC (Modbus) for Home Assistant
 
 Local control of Toshiba residential air conditioners through the
@@ -30,6 +32,29 @@ install, restart Home Assistant.
 and restart.
 
 Then *Settings → Devices & services → Add integration → Toshiba RAC (Modbus)*.
+
+## Icons
+
+Two kinds, both local to the component — no PR to `home-assistant/brands`, no manifest key.
+
+`brand/` holds the integration artwork. Measured on HA 2026.7.4 by uploading eight
+distinct numbered boards at once and reading the result off the screenshots:
+
+| Where in the UI | Light theme | Dark theme |
+|---|---|---|
+| Integration tile, "Select brand" dialog, device list, device page row | `icon.png` | `dark_icon.png` |
+| Integration page header (80 px) | `icon@2x.png` | `dark_icon@2x.png` |
+| Badge in the top-right corner of a device page | `logo.png` | `dark_logo.png` |
+| Config-flow dialog | none | none |
+
+`logo@2x.png` and `dark_logo@2x.png` did not appear in any view. Editing any of these
+takes effect on the next request — the endpoint reads from disk — so a browser hard
+refresh is enough, no HA restart.
+
+`icons.json` maps every entity to an MDI icon by its translation key. Without it the six
+remote-lock switches all render as the generic tablet glyph and the readback sensors as an
+eye. Icon names are validated against `/static/mdi/iconList.json` served by the running
+instance; an unknown name renders as blank space, not an error.
 
 ## Configuration
 

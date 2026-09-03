@@ -1,0 +1,52 @@
+{
+  "entity": {
+    "sensor": {
+      "setpoint_status": { "default": "mdi:thermostat" },
+      "capacity": { "default": "mdi:gauge" },
+      "hours": { "default": "mdi:timer-outline" },
+      "check_code": { "default": "mdi:alert-circle-outline" },
+      "mode_status": { "default": "mdi:air-conditioner" },
+      "fan_status": { "default": "mdi:fan" },
+      "louver_status": { "default": "mdi:arrow-oscillating" },
+      "model": { "default": "mdi:tag-outline" },
+      "serial": { "default": "mdi:barcode" },
+      "bus_messages": { "default": "mdi:swap-horizontal" },
+      "bus_errors": { "default": "mdi:alert-octagon-outline" },
+      "device_messages": { "default": "mdi:message-arrow-right-outline" },
+      "frames_last": { "default": "mdi:counter" },
+      "units_present": { "default": "mdi:home-thermometer-outline" },
+      "slave_address": { "default": "mdi:numeric" }
+    },
+    "binary_sensor": {
+      "power": { "default": "mdi:power-standby", "state": { "on": "mdi:power" } },
+      "filter_sign": { "default": "mdi:air-filter" },
+      "alarm": { "default": "mdi:shield-check-outline", "state": { "on": "mdi:alert" } },
+      "thermo": { "default": "mdi:pump-off", "state": { "on": "mdi:pump" } },
+      "st_pure_filter": { "default": "mdi:air-purifier-off", "state": { "on": "mdi:air-purifier" } },
+      "st_hi_power": { "default": "mdi:rocket-launch-outline" },
+      "st_eco": { "default": "mdi:leaf" },
+      "st_quiet": { "default": "mdi:volume-low" },
+      "st_silence": { "default": "mdi:volume-off" },
+      "connectivity": { "default": "mdi:lan-disconnect", "state": { "on": "mdi:lan-connect" } }
+    },
+    "switch": {
+      "hi_power": { "default": "mdi:rocket-launch-outline" },
+      "eco": { "default": "mdi:leaf" },
+      "quiet": { "default": "mdi:volume-low" },
+      "silence": { "default": "mdi:volume-off" },
+      "rc_lock_onoff": { "default": "mdi:power-standby" },
+      "rc_lock_mode": { "default": "mdi:air-conditioner" },
+      "rc_lock_setpoint": { "default": "mdi:thermostat" },
+      "rc_lock_louver": { "default": "mdi:arrow-oscillating" },
+      "rc_lock_fan": { "default": "mdi:fan" },
+      "rc_lock_ventilation": { "default": "mdi:weather-windy" }
+    },
+    "select": {
+      "save": { "default": "mdi:speedometer-slow" }
+    },
+    "button": {
+      "filter_reset": { "default": "mdi:air-filter" },
+      "discover_units": { "default": "mdi:magnify-scan" }
+    }
+  }
+}
