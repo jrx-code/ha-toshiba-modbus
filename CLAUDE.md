@@ -43,6 +43,13 @@ Remotes: `origin` = Forgejo, `github` = public mirror.
   entity registers, so a unit added to `self.units` without its registers already in
   `self.data` lands in the device registry with the fallback model and no serial, and
   stays that way. `_read_unit_into` fills the data first.
+- **Integer fields with a range render as sliders.** A plain `vol.Range` on an int gives
+  the user a slider, which is useless for a port or a slave address copied off a board.
+  `number()` wraps `NumberSelector` in `BOX` mode; keep new numeric fields going through it.
+- **`unit_of_measurement=None` breaks `NumberSelectorConfig`.** The validator wants a
+  string, so the key has to be absent, not None, or the whole `config_flow` module fails
+  to import and the integration disappears from the add-integration list with only
+  "Invalid handler specified" visible from the API.
 - **`vol.Any` cannot be serialised into a config-flow form.** HA raises
   `ValueError: Unable to convert schema` and the flow returns HTTP 500 with the traceback
   only in the container log. Use a plain `vol.Range` and handle special values in code.

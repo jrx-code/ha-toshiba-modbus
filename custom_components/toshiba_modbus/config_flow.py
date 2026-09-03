@@ -9,6 +9,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow, ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import callback
+from homeassistant.helpers import selector
 from pymodbus.client import AsyncModbusTcpClient
 from pymodbus.framer import FramerType
 
@@ -20,17 +21,35 @@ from .const import (
     DOMAIN, FRAMING_RTUOVERTCP, FRAMINGS,
 )
 
+def number(minimum: int, maximum: int, unit: str | None = None):
+    """Pole liczbowe, nie suwak.
+
+    Zwykły `vol.Range` na liczbie całkowitej frontend HA renderuje jako suwak, co przy
+    adresie slave czy porcie jest bezużyteczne - wartość wpisuje się z płytki albo
+    z instrukcji, nie dobiera przeciąganiem.
+    """
+    config: dict[str, Any] = {
+        "min": minimum, "max": maximum, "step": 1,
+        "mode": selector.NumberSelectorMode.BOX,
+    }
+    # Klucz jednostki musi zniknąć, gdy jej nie ma - None nie przechodzi walidacji
+    # selektora ("expected str for dictionary value").
+    if unit:
+        config["unit_of_measurement"] = unit
+    return vol.All(
+        selector.NumberSelector(selector.NumberSelectorConfig(**config)),
+        vol.Coerce(int),
+    )
+
+
 STEP_USER = vol.Schema({
     vol.Required(CONF_HOST): str,
-    vol.Required(CONF_PORT, default=DEFAULT_PORT): vol.All(int, vol.Range(min=1, max=65535)),
+    vol.Required(CONF_PORT, default=DEFAULT_PORT): number(1, 65535),
     vol.Required(CONF_FRAMING, default=FRAMING_RTUOVERTCP): vol.In(FRAMINGS),
-    vol.Required(CONF_SLAVE, default=DEFAULT_SLAVE): vol.All(int, vol.Range(min=1, max=247)),
-    vol.Required(CONF_DISCOVER_MAX, default=DEFAULT_DISCOVER_MAX):
-        vol.All(int, vol.Range(min=1, max=reg.ADDR_MAX)),
-    vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL):
-        vol.All(int, vol.Range(min=10, max=600)),
-    vol.Required(CONF_RESCAN_INTERVAL, default=DEFAULT_RESCAN_INTERVAL):
-        vol.All(int, vol.Range(min=0, max=3600)),
+    vol.Required(CONF_SLAVE, default=DEFAULT_SLAVE): number(1, 247),
+    vol.Required(CONF_DISCOVER_MAX, default=DEFAULT_DISCOVER_MAX): number(1, reg.ADDR_MAX),
+    vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): number(10, 600, "s"),
+    vol.Required(CONF_RESCAN_INTERVAL, default=DEFAULT_RESCAN_INTERVAL): number(0, 3600, "s"),
 })
 
 
@@ -132,12 +151,11 @@ class ToshibaModbusOptionsFlow(OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
-                vol.Required(CONF_SCAN_INTERVAL, default=now(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)):
-                    vol.All(int, vol.Range(min=10, max=600)),
+                vol.Required(CONF_SCAN_INTERVAL,
+                             default=now(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): number(10, 600, "s"),
                 vol.Required(CONF_RESCAN_INTERVAL,
-                             default=now(CONF_RESCAN_INTERVAL, DEFAULT_RESCAN_INTERVAL)):
-                    vol.All(int, vol.Range(min=0, max=3600)),
-                vol.Required(CONF_DISCOVER_MAX, default=now(CONF_DISCOVER_MAX, DEFAULT_DISCOVER_MAX)):
-                    vol.All(int, vol.Range(min=1, max=reg.ADDR_MAX)),
+                             default=now(CONF_RESCAN_INTERVAL, DEFAULT_RESCAN_INTERVAL)): number(0, 3600, "s"),
+                vol.Required(CONF_DISCOVER_MAX,
+                             default=now(CONF_DISCOVER_MAX, DEFAULT_DISCOVER_MAX)): number(1, reg.ADDR_MAX),
             }),
         )
