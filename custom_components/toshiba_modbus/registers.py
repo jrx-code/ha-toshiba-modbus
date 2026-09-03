@@ -29,6 +29,15 @@ from typing import Final
 STRIDE_BITS: Final = 152  # coil / discrete
 STRIDE_WORDS: Final = 156  # input / holding
 
+# Najdłuższy odczyt rejestrów, który wraca z instalacji. Zmierzone 2026-09-03 na
+# interfejsie za bramką Waveshare 9600 8E1: 16 rejestrów wraca zawsze, 17 w 2 z 3
+# prób, 20 i więcej nigdy - ani razu w 15 próbach. Próg jest twardy i nie zależy od
+# czasu: RTT trzyma się ~730 ms niezależnie od długości odczytu, także z hosta w tym
+# samym VLAN-ie, więc to nie jest timeout transmisji. Powyżej progu nie ma wyjątku
+# ani błędu, jest cisza, a pojedynczy blok input o długości 38 rejestrów zabierał
+# ze sobą model, numer seryjny i wszystkie odczyty jednostki.
+MAX_READ_LEN: Final = 16
+
 # Central control address range with "old controller", which RAC interfaces
 # require (SM p. 16 and p. 33).
 ADDR_MIN: Final = 1
@@ -106,11 +115,11 @@ def width(space: str, key: str) -> int:
     return WIDTH.get((space, key), 1)
 
 
-def blocks_for_unit(space: str, unit: int, max_len: int = 60, max_gap: int = 12) -> list[tuple[int, int]]:
+def blocks_for_unit(space: str, unit: int, max_len: int = MAX_READ_LEN, max_gap: int = 12) -> list[tuple[int, int]]:
     """Scala pola jednej przestrzeni w ciągłe zakresy odczytu.
 
     Bez tego wychodzi jedna transakcja na pole. Przy 9600 bps to jest różnica
-    między 21 a 96 ramkami na cykl odpytania trzech jednostek.
+    między 27 a 96 ramkami na cykl odpytania trzech jednostek.
     """
     table = {"coil": COIL, "discrete": DISCRETE, "input": INPUT, "holding": HOLDING}[space]
     spans = sorted(

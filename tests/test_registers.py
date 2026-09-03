@@ -59,3 +59,16 @@ def test_absent_unit_reads_as_empty_string():
 def test_signed_conversion():
     assert reg.signed(0x0017) == 23
     assert reg.signed(0xFFFB) == -5
+
+
+def test_no_block_exceeds_the_measured_read_limit():
+    """Bramka nie odpowiada na dłuższe odczyty i nie mówi dlaczego.
+
+    Odczyt powyżej ~16 rejestrów wraca ciszą, nie wyjątkiem, więc przekroczenie
+    progu nie wygląda na błąd konfiguracji - wygląda na martwą magistralę.
+    """
+    for space in ("coil", "discrete", "input", "holding"):
+        for unit in (1, 3, 64):
+            for start, count in reg.blocks_for_unit(space, unit):
+                if space in ("input", "holding"):
+                    assert count <= reg.MAX_READ_LEN, f"{space} {start}+{count}"

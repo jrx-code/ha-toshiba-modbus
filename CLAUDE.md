@@ -24,6 +24,17 @@ Remotes: `origin` = Forgejo, `github` = public mirror.
   is drift, so `tests/test_map_parity.py` fails when the addresses stop matching.
   Fix the map, never the test.
 - **Address stride is per space**: 152 for coil/discrete, 156 for input/holding.
+- **A read longer than 16 registers comes back as silence.** Measured on the installed
+  hardware: 16 registers always answer, 17 answers about two times in three, 20 and above
+  never did in fifteen attempts. There is no exception and no error — the socket simply
+  stays quiet, which reads exactly like a dead bus, and the old 38-register `input` block
+  took the model name, the serial and every reading down with it. The cause is not timing:
+  round-trip time holds at ~730 ms whatever the length, including from a host on the same
+  VLAN. `MAX_READ_LEN` caps `blocks_for_unit` and a test enforces it.
+- **The bus costs ~800 ms per transaction regardless of size.** Nine frames per indoor
+  unit means about 7 s for one unit and roughly 23 s for three against a 30 s interval.
+  Raising the line from 9600 buys nothing — the constant is not transmission time, so the
+  only lever that would help is fewer frames.
 - **Presence is the model-name string.** A missing unit returns a valid frame of
   zeros, so every entity hangs its `available` on `coordinator.present()`. Without
   it the UI shows 0 °C and mode `invalid` as if they were readings.
