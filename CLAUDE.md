@@ -1,0 +1,52 @@
+# toshiba_modbus
+
+Custom integration for HA. Register map documented in the parent project
+(`../docs/08-modbus-interface.md`); manuals in `../docs/manuals/`.
+
+## Where this lives and why
+
+The working copy sits inside `~/CodeHub/home/klimatyzacja/integracja/`, but it is an
+**independent git repo**, ignored by the parent — the same pattern as the 32 repos
+under `z4-server/serwisy/`. Two constraints forced it:
+
+- the `klimatyzacja` repo holds prices, offers, negotiations and invoice data in
+  six `docs/*.md` files, so it can never be published;
+- HACS resolves integrations at `custom_components/<domain>` **relative to the repo
+  root**, so nesting the component inside another repo's subdirectory breaks install.
+
+Remotes: `origin` = Forgejo, `github` = public mirror.
+
+## Gotchas
+
+- **The map is duplicated on purpose.** `registers.py` here and
+  `app/devices/toshiba.py` in `modbus-ui` describe the same hardware. The panel is
+  dependency-free and public; coupling them would drag HA into that repo. The cost
+  is drift, so `tests/test_map_parity.py` fails when the addresses stop matching.
+  Fix the map, never the test.
+- **Address stride is per space**: 152 for coil/discrete, 156 for input/holding.
+- **Presence is the model-name string.** A missing unit returns a valid frame of
+  zeros, so every entity hangs its `available` on `coordinator.present()`. Without
+  it the UI shows 0 °C and mode `invalid` as if they were readings.
+- **One lock over the bus.** The coordinator serialises reads and writes through
+  `asyncio.Lock` and keeps a single client. Gateways accept several TCP clients but
+  deliver replies to the wrong one — measured on an EW11, both sockets received the
+  same frame. Never open a second client "just for writes".
+- **Writes echo the request.** Functions `0x05`/`0x06` return the request frame,
+  which pymodbus accepts; the coordinator then forces a refresh, because the
+  interface needs a poll cycle before the readback registers change.
+- **`hvac_action` comes from the compressor bit** (`10004`), not from the mode
+  register. Mode says what was asked for, the bit says what the unit is doing.
+- **Brand icons are local.** `brand/icon.png` + `@2x` (and dark variants) inside the
+  component; no PR to `home-assistant/brands`, no manifest key. Changing them needs
+  a full HA restart, not a config-entry reload.
+- **Test on the spare HA instance first, never on the production one.** The deploy path
+  there is the SSH add-on with a password, which needs `-o PubkeyAuthentication=no`
+  because `Host *` in the local ssh config disables password auth. Addresses are in the
+  session memory, not here — this file is public.
+
+## Emulator
+
+`tools/emulator.py` imports `registers.py` by path, so the emulator and the
+integration cannot disagree about addresses. It reproduces the three slave
+addresses, exception `0x02` on `N+2`, the zero-filled frame for an absent unit,
+and function `0x08`.

@@ -1,0 +1,150 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Interfejs Modbus Toshiby",
+        "description": "Adres bramki RS-485, za którą stoi BMS-IFMB1280U-E. Adres slave musi zgadzać się z przełącznikiem SW1 na interfejsie.",
+        "data": {
+          "host": "Adres bramki",
+          "port": "Port",
+          "framing": "Ramkowanie",
+          "slave": "Adres slave (SW1)",
+          "discover_max": "Przeszukaj adresy centralne do",
+          "scan_interval": "Odpytywanie co (s)"
+        },
+        "data_description": {
+          "framing": "rtuovertcp dla mostów przezroczystych (Elfin EW11), tcp dla bramek konwertujących MBAP (Waveshare w trybie 5).",
+          "discover_max": "Jedna ramka na adres. Jednostki bez odpowiedzi nie zostaną dodane."
+        }
+      },
+      "names": {
+        "title": "Nazwy jednostek",
+        "description": "Znalezione: {found}. W rejestrach jest tylko model, więc nazwy pomieszczeń trzeba podać tutaj."
+      }
+    },
+    "error": {
+      "cannot_connect": "Brak odpowiedzi. Sprawdź adres bramki, ramkowanie i to, czy nic innego nie odpytuje magistrali w tej samej chwili.",
+      "no_units": "Bramka odpowiada, ale żadna jednostka się nie zgłosiła. Nazwa modelu wypełniona zerami oznacza brak jednostki na magistrali Uh."
+    },
+    "abort": {
+      "already_configured": "Ten interfejs jest już dodany."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Odpytywanie",
+        "data": {
+          "scan_interval": "Odpytywanie co (s)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "setpoint_status": {
+        "name": "Nastawa (odczyt)"
+      },
+      "capacity": {
+        "name": "Wydajność"
+      },
+      "hours": {
+        "name": "Godziny pracy"
+      },
+      "check_code": {
+        "name": "Kod błędu"
+      },
+      "mode_status": {
+        "name": "Tryb (odczyt)"
+      },
+      "fan_status": {
+        "name": "Wentylator (odczyt)"
+      },
+      "louver_status": {
+        "name": "Żaluzja (odczyt)"
+      },
+      "model": {
+        "name": "Model"
+      },
+      "serial": {
+        "name": "Numer seryjny"
+      }
+    },
+    "binary_sensor": {
+      "power": {
+        "name": "Zasilanie"
+      },
+      "filter_sign": {
+        "name": "Filtr"
+      },
+      "alarm": {
+        "name": "Alarm"
+      },
+      "thermo": {
+        "name": "Sprężarka"
+      },
+      "st_pure_filter": {
+        "name": "Pure Filter"
+      },
+      "st_hi_power": {
+        "name": "Hi-Power (status)"
+      },
+      "st_eco": {
+        "name": "ECO (status)"
+      },
+      "st_quiet": {
+        "name": "Quiet FCU (status)"
+      },
+      "st_silence": {
+        "name": "Silence CDU (status)"
+      }
+    },
+    "switch": {
+      "hi_power": {
+        "name": "Hi-Power"
+      },
+      "eco": {
+        "name": "ECO"
+      },
+      "quiet": {
+        "name": "Quiet FCU"
+      },
+      "silence": {
+        "name": "Silence CDU"
+      },
+      "rc_lock_onoff": {
+        "name": "Blokada pilota: włącznik"
+      },
+      "rc_lock_mode": {
+        "name": "Blokada pilota: tryb"
+      },
+      "rc_lock_setpoint": {
+        "name": "Blokada pilota: nastawa"
+      },
+      "rc_lock_louver": {
+        "name": "Blokada pilota: żaluzja"
+      },
+      "rc_lock_fan": {
+        "name": "Blokada pilota: wentylator"
+      },
+      "rc_lock_ventilation": {
+        "name": "Blokada pilota: wentylacja"
+      }
+    },
+    "select": {
+      "save": {
+        "name": "Ograniczenie mocy",
+        "state": {
+          "no_limit": "100% (bez ograniczenia)",
+          "variable": "Zmienne (100-50%)",
+          "half": "50%"
+        }
+      }
+    },
+    "button": {
+      "filter_reset": {
+        "name": "Kasuj sygnalizację filtra"
+      }
+    }
+  }
+}

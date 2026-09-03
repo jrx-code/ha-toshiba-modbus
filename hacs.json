@@ -1,0 +1,5 @@
+{
+  "name": "Toshiba RAC (Modbus)",
+  "homeassistant": "2025.1.0",
+  "render_readme": true
+}

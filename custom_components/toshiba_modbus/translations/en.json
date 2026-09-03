@@ -1,0 +1,150 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Toshiba Modbus interface",
+        "description": "Address of the RS-485 gateway in front of the BMS-IFMB1280U-E. The slave address must match switch SW1 on the interface.",
+        "data": {
+          "host": "Gateway address",
+          "port": "Port",
+          "framing": "Framing",
+          "slave": "Slave address (SW1)",
+          "discover_max": "Scan central addresses up to",
+          "scan_interval": "Poll every (s)"
+        },
+        "data_description": {
+          "framing": "rtuovertcp for transparent bridges (Elfin EW11), tcp for gateways converting MBAP (Waveshare mode 5).",
+          "discover_max": "One frame per address. Units that do not answer are not added."
+        }
+      },
+      "names": {
+        "title": "Unit names",
+        "description": "Found: {found}. The registers only carry the model, so room names have to be given here."
+      }
+    },
+    "error": {
+      "cannot_connect": "No answer. Check the gateway address, the framing, and that nothing else is polling the bus at the same moment.",
+      "no_units": "The gateway answers but no indoor unit reported in. A model name full of zeros means no unit on the Uh bus."
+    },
+    "abort": {
+      "already_configured": "This interface is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Polling",
+        "data": {
+          "scan_interval": "Poll every (s)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "setpoint_status": {
+        "name": "Setpoint (readback)"
+      },
+      "capacity": {
+        "name": "Capacity"
+      },
+      "hours": {
+        "name": "Operating hours"
+      },
+      "check_code": {
+        "name": "Check code"
+      },
+      "mode_status": {
+        "name": "Mode (readback)"
+      },
+      "fan_status": {
+        "name": "Fan (readback)"
+      },
+      "louver_status": {
+        "name": "Louver (readback)"
+      },
+      "model": {
+        "name": "Model"
+      },
+      "serial": {
+        "name": "Serial number"
+      }
+    },
+    "binary_sensor": {
+      "power": {
+        "name": "Power"
+      },
+      "filter_sign": {
+        "name": "Filter"
+      },
+      "alarm": {
+        "name": "Alarm"
+      },
+      "thermo": {
+        "name": "Compressor"
+      },
+      "st_pure_filter": {
+        "name": "Pure Filter"
+      },
+      "st_hi_power": {
+        "name": "Hi-Power (status)"
+      },
+      "st_eco": {
+        "name": "ECO (status)"
+      },
+      "st_quiet": {
+        "name": "Quiet FCU (status)"
+      },
+      "st_silence": {
+        "name": "Silence CDU (status)"
+      }
+    },
+    "switch": {
+      "hi_power": {
+        "name": "Hi-Power"
+      },
+      "eco": {
+        "name": "ECO"
+      },
+      "quiet": {
+        "name": "Quiet FCU"
+      },
+      "silence": {
+        "name": "Silence CDU"
+      },
+      "rc_lock_onoff": {
+        "name": "Remote lock: power"
+      },
+      "rc_lock_mode": {
+        "name": "Remote lock: mode"
+      },
+      "rc_lock_setpoint": {
+        "name": "Remote lock: setpoint"
+      },
+      "rc_lock_louver": {
+        "name": "Remote lock: louver"
+      },
+      "rc_lock_fan": {
+        "name": "Remote lock: fan"
+      },
+      "rc_lock_ventilation": {
+        "name": "Remote lock: ventilation"
+      }
+    },
+    "select": {
+      "save": {
+        "name": "Power limit",
+        "state": {
+          "no_limit": "100% (no limit)",
+          "variable": "Variable (100-50%)",
+          "half": "50%"
+        }
+      }
+    },
+    "button": {
+      "filter_reset": {
+        "name": "Reset filter sign"
+      }
+    }
+  }
+}
