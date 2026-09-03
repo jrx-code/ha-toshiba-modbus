@@ -58,7 +58,9 @@ class NoReply(Exception):
     """Gniazdo się otworzyło, ale interfejs nie odpowiedział poprawną ramką."""
 
 
-async def _discover(host: str, port: int, framing: str, slave: int, limit: int) -> dict[int, str]:
+async def _discover(
+    host: str, port: int, framing: str, slave: int, limit: int
+) -> dict[int, tuple[str, str]]:
     """Nazwa modelu jest jedynym pewnym testem obecności - nieobecna jednostka
     oddaje poprawną ramkę zer, nie wyjątek.
 
@@ -70,19 +72,26 @@ async def _discover(host: str, port: int, framing: str, slave: int, limit: int) 
     client = AsyncModbusTcpClient(host=host, port=port, framer=framer, timeout=DEFAULT_TIMEOUT)
     if not await client.connect():
         raise ConnectionError(f"nic nie nasłuchuje na {host}:{port}")
-    found: dict[int, str] = {}
+    found: dict[int, tuple[str, str]] = {}
+
+    async def text(unit: int, key: str) -> str:
+        result = await client.read_input_registers(
+            address=reg.addr("input", unit, key),
+            count=reg.width("input", key),
+            device_id=slave,
+        )
+        if result.isError():
+            raise NoReply(f"interfejs nie odpowiedział na odczyt jednostki {unit}: {result}")
+        return reg.decode_ascii(list(result.registers))
+
     try:
         for unit in range(1, limit + 1):
-            result = await client.read_input_registers(
-                address=reg.addr("input", unit, "model"),
-                count=reg.width("input", "model"),
-                device_id=slave,
-            )
-            if result.isError():
-                raise NoReply(f"interfejs nie odpowiedział na odczyt jednostki {unit}: {result}")
-            name = reg.decode_ascii(list(result.registers))
-            if name:
-                found[unit] = name
+            model = await text(unit, "model")
+            if not model:
+                continue
+            # Numer seryjny czytamy dopiero dla jednostek obecnych - dla pustych
+            # adresów byłaby to druga ramka po nic.
+            found[unit] = (model, await text(unit, "serial"))
     finally:
         client.close()
     return found
@@ -93,8 +102,7 @@ class ToshibaModbusConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         self._data: dict[str, Any] = {}
-        self._found: dict[int, str] = {}
-        self._include: list[int] = []
+        self._found: dict[int, tuple[str, str]] = {}
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
@@ -123,60 +131,43 @@ class ToshibaModbusConfigFlow(ConfigFlow, domain=DOMAIN):
                     # stan poprawny przed montażem adapterów RAC. Wpis powstaje
                     # z samym interfejsem, jednostki dojdą, kiedy się zgłoszą.
                     return self._create({}, [], [])
-                return await self.async_step_select()
+                return await self.async_step_units()
         return self.async_show_form(step_id="user", data_schema=STEP_USER, errors=errors)
 
-    async def async_step_select(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Które z wykrytych jednostek w ogóle dodać.
+    def _labels(self) -> dict[int, tuple[str, str]]:
+        """Klucze pól formularza.
 
-        Interfejs obsługuje 64 adresy centralne i nie wszystkie muszą należeć do tej
-        instalacji. Pominięte adresy zapamiętujemy, inaczej skan w tle dołożyłby je
-        z powrotem w ciągu kilku minut.
+        Etykieta pola to jego klucz, dopóki nie ma dla niego tłumaczenia, a kluczy
+        zależnych od adresu przetłumaczyć się nie da - jest ich do 64. Dlatego adres,
+        model i numer seryjny wchodzą wprost do klucza; adres na początku gwarantuje
+        unikalność nawet przy dwóch identycznych tabliczkach.
         """
-        if user_input is not None:
-            self._include = sorted(int(x) for x in user_input["include"])
-            if not self._include:
-                return self._create({}, [], sorted(self._found))
-            return await self.async_step_names()
+        return {
+            unit: (f"{unit} · {model} · {serial or 'brak numeru'}", f"Nazwa {unit}")
+            for unit, (model, serial) in sorted(self._found.items())
+        }
 
-        options = [
-            selector.SelectOptionDict(value=str(u), label=f"{u} — {model}")
-            for u, model in sorted(self._found.items())
-        ]
-        schema = vol.Schema({
-            vol.Optional("include", default=[str(u) for u in sorted(self._found)]):
-                selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=options,
-                        multiple=True,
-                        mode=selector.SelectSelectorMode.LIST,
-                    )
-                ),
-        })
-        return self.async_show_form(
-            step_id="select",
-            data_schema=schema,
-            description_placeholders={"count": str(len(self._found))},
-        )
-
-    async def async_step_names(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Nazwy pomieszczeń - w rejestrach jest tylko model, nie ma gdzie ich wziąć."""
+    async def async_step_units(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Wybór i nazwanie wykrytych jednostek w jednym oknie."""
+        labels = self._labels()
         if user_input is not None:
+            include = [u for u, (box, _) in labels.items() if user_input.get(box)]
+            names = {
+                str(u): (user_input.get(labels[u][1]) or f"Jednostka {u}").strip()
+                for u in include
+            }
             return self._create(
-                {str(u): user_input[f"unit_{u}"] for u in self._include},
-                self._include,
-                [u for u in sorted(self._found) if u not in self._include],
+                names, include, [u for u in sorted(self._found) if u not in include]
             )
-        schema = vol.Schema({
-            vol.Required(f"unit_{u}", default=f"Jednostka {u}"): str
-            for u in self._include
-        })
+
+        schema: dict[Any, Any] = {}
+        for unit, (box, name) in labels.items():
+            schema[vol.Required(box, default=True)] = selector.BooleanSelector()
+            schema[vol.Optional(name, default=f"Jednostka {unit}")] = str
         return self.async_show_form(
-            step_id="names",
-            data_schema=schema,
-            description_placeholders={
-                "found": ", ".join(f"{u}: {self._found[u]}" for u in self._include)
-            },
+            step_id="units",
+            data_schema=vol.Schema(schema),
+            description_placeholders={"count": str(len(self._found))},
         )
 
     def _create(

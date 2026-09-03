@@ -18,16 +18,9 @@
           "discover_max": "One frame per address. Units that do not answer are not added."
         }
       },
-      "names": {
-        "title": "Unit names",
-        "description": "Found: {found}. The registers only carry the model, so room names have to be given here."
-      },
-      "select": {
-        "title": "Which units to add",
-        "description": "The interface reported {count} units. Clear the ones that do not belong to this installation — skipped addresses will not come back through the background scan or the button until you restore them in the options.",
-        "data": {
-          "include": "Units to add"
-        }
+      "units": {
+        "title": "Discovered indoor units",
+        "description": "The interface reported {count}. Clear the ones that do not belong to this installation — skipped addresses will not come back through the background scan or the button until you restore them in the options. Room names have to be given here, because the registers carry only the model and the serial number."
       }
     },
     "error": {

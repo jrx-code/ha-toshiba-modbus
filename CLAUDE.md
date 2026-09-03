@@ -43,6 +43,11 @@ Remotes: `origin` = Forgejo, `github` = public mirror.
   entity registers, so a unit added to `self.units` without its registers already in
   `self.data` lands in the device registry with the fallback model and no serial, and
   stays that way. `_read_unit_into` fills the data first.
+- **Per-unit form labels live in the field key.** A config-flow field shows its key until
+  a translation exists for it, and keys derived from an address cannot be translated -
+  there are up to 64 of them. `_labels()` therefore builds keys like
+  `3 · RAS-B10N4KVRG-E · SN000003`, address first so two identical nameplates still differ.
+  Regenerate the keys from `self._found` on submit rather than caching them.
 - **A skipped unit has to be remembered, not just skipped.** Addresses cleared in the
   select step go to `options["excluded"]`, and `_unknown_addresses()` filters them out.
   Without that the background rescan would put them back within minutes and the choice

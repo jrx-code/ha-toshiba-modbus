@@ -18,16 +18,9 @@
           "discover_max": "Jedna ramka na adres. Jednostki bez odpowiedzi nie zostaną dodane."
         }
       },
-      "names": {
-        "title": "Nazwy jednostek",
-        "description": "Znalezione: {found}. W rejestrach jest tylko model, więc nazwy pomieszczeń trzeba podać tutaj."
-      },
-      "select": {
-        "title": "Które jednostki dodać",
-        "description": "Interfejs zgłosił {count} jednostek. Odznacz te, które nie należą do tej instalacji — pominięte adresy nie wrócą przy skanowaniu w tle ani po naciśnięciu przycisku, dopóki nie przywrócisz ich w opcjach.",
-        "data": {
-          "include": "Jednostki do dodania"
-        }
+      "units": {
+        "title": "Wykryte jednostki wewnętrzne",
+        "description": "Interfejs zgłosił {count}. Odznacz te, które nie należą do tej instalacji — pominięte adresy nie wrócą przy skanowaniu w tle ani po naciśnięciu przycisku, dopóki nie przywrócisz ich w opcjach. Nazwy pomieszczeń trzeba podać tutaj, bo rejestry niosą tylko model i numer seryjny."
       }
     },
     "error": {

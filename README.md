@@ -40,10 +40,12 @@ Then *Settings → Devices & services → Add integration → Toshiba RAC (Modbu
 | Slave address | Must equal switch **SW1** on the interface board |
 | Scan central addresses up to | One frame per address; units that do not answer are skipped |
 
-Setup reads the model-name registers of each candidate address and lists the ones that
-answer. **Every discovered unit is a checkbox** — an interface serves up to 64 central
-addresses and not all of them have to belong to this installation. Clear the ones you do
-not want; the rest you name, because the registers carry the model and never a location.
+Setup reads the model name of each candidate address, then the serial number of the ones
+that answer, and puts the whole result in **one dialog**: a checkbox per unit labelled
+with its address, model and serial, and a name field beside it. An interface serves up to
+64 central addresses and not all of them have to belong to this installation, so clear
+what you do not want. Names have to be typed here — the registers carry the model and the
+serial, never a location.
 
 A cleared address is remembered as excluded, so neither the background scan nor the
 button brings it back. Restore it later under *Configure* on the entry.
