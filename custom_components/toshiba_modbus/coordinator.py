@@ -309,7 +309,7 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
         return bool(self.text(unit, "model"))
 
     def unit_name(self, unit: int) -> str:
-        return self.names.get(unit) or f"Jednostka {unit}"
+        return self.names.get(unit) or f"Unit {unit}"
 
     def diagnostics(self) -> dict[str, Any]:
         return {

@@ -143,7 +143,7 @@ class ToshibaModbusConfigFlow(ConfigFlow, domain=DOMAIN):
         unikalność nawet przy dwóch identycznych tabliczkach.
         """
         return {
-            unit: (f"{unit} · {model} · {serial or 'brak numeru'}", f"Nazwa {unit}")
+            unit: (f"{unit} · {model} · {serial or 'no serial'}", f"Name {unit}")
             for unit, (model, serial) in sorted(self._found.items())
         }
 
@@ -153,7 +153,7 @@ class ToshibaModbusConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             include = [u for u, (box, _) in labels.items() if user_input.get(box)]
             names = {
-                str(u): (user_input.get(labels[u][1]) or f"Jednostka {u}").strip()
+                str(u): (user_input.get(labels[u][1]) or f"Unit {u}").strip()
                 for u in include
             }
             return self._create(
@@ -163,7 +163,7 @@ class ToshibaModbusConfigFlow(ConfigFlow, domain=DOMAIN):
         schema: dict[Any, Any] = {}
         for unit, (box, name) in labels.items():
             schema[vol.Required(box, default=True)] = selector.BooleanSelector()
-            schema[vol.Optional(name, default=f"Jednostka {unit}")] = str
+            schema[vol.Optional(name, default=f"Unit {unit}")] = str
         return self.async_show_form(
             step_id="units",
             data_schema=vol.Schema(schema),
