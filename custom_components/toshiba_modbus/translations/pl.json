@@ -68,6 +68,24 @@
       },
       "serial": {
         "name": "Numer seryjny"
+      },
+      "bus_messages": {
+        "name": "Komunikaty na magistrali"
+      },
+      "bus_errors": {
+        "name": "Błędy komunikacji"
+      },
+      "device_messages": {
+        "name": "Komunikaty do interfejsu"
+      },
+      "frames_last": {
+        "name": "Ramek w ostatnim cyklu"
+      },
+      "units_present": {
+        "name": "Jednostki obecne"
+      },
+      "slave_address": {
+        "name": "Adres slave"
       }
     },
     "binary_sensor": {
@@ -97,6 +115,9 @@
       },
       "st_silence": {
         "name": "Silence CDU (status)"
+      },
+      "connectivity": {
+        "name": "Łączność"
       }
     },
     "switch": {

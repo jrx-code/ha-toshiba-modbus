@@ -51,6 +51,11 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
         self._lock = asyncio.Lock()
         self._plan = self._build_plan()
         self.frames_last = 0
+        # Liczniki funkcji 0x08. Odpowiada na nie sam interfejs i nigdy nie schodzą
+        # na magistralę Uh, więc nie obciążają jednostek wewnętrznych.
+        self.counters: dict[str, int | None] = {
+            "bus_messages": None, "bus_errors": None, "device_messages": None,
+        }
 
         scan = entry.options.get("scan_interval", entry.data.get("scan_interval", DEFAULT_SCAN_INTERVAL))
         super().__init__(
@@ -72,7 +77,8 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
 
     @property
     def frames_per_cycle(self) -> int:
-        return len(self._plan)
+        """Bloki rejestrów plus trzy ramki liczników 0x08."""
+        return len(self._plan) + len(self.counters)
 
     # ----------------------------------------------------------------- klient
 
@@ -119,8 +125,28 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
             except Exception as err:  # noqa: BLE001
                 self._client = None
                 raise UpdateFailed(f"Błąd odczytu: {err}") from err
+            frames += await self._read_counters(client)
             self.frames_last = frames
             return data
+
+    async def _read_counters(self, client: AsyncModbusTcpClient) -> int:
+        """Diagnostyka interfejsu. Błąd tutaj nie może wywalić całego odczytu -
+        liczniki są dodatkiem, a nie powodem, dla którego encje mają zniknąć."""
+        calls = (
+            ("bus_messages", client.diag_read_bus_message_count),
+            ("bus_errors", client.diag_read_bus_comm_error_count),
+            ("device_messages", client.diag_read_device_message_count),
+        )
+        frames = 0
+        for name, call in calls:
+            try:
+                result = await call(device_id=self.slave)
+                frames += 1
+                self.counters[name] = None if result.isError() else int(result.message)
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug("licznik %s niedostępny: %s", name, err)
+                self.counters[name] = None
+        return frames
 
     # ----------------------------------------------------------------- zapis
 
@@ -182,5 +208,6 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
             "units": self.units,
             "frames_per_cycle": self.frames_per_cycle,
             "frames_last": self.frames_last,
+            "counters": dict(self.counters),
             "plan": [{"space": s, "start": a, "count": c} for s, a, c in self._plan],
         }

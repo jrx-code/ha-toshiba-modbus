@@ -68,6 +68,24 @@
       },
       "serial": {
         "name": "Serial number"
+      },
+      "bus_messages": {
+        "name": "Bus messages"
+      },
+      "bus_errors": {
+        "name": "Communication errors"
+      },
+      "device_messages": {
+        "name": "Messages to interface"
+      },
+      "frames_last": {
+        "name": "Frames last cycle"
+      },
+      "units_present": {
+        "name": "Units present"
+      },
+      "slave_address": {
+        "name": "Slave address"
       }
     },
     "binary_sensor": {
@@ -97,6 +115,9 @@
       },
       "st_silence": {
         "name": "Silence CDU (status)"
+      },
+      "connectivity": {
+        "name": "Connectivity"
       }
     },
     "switch": {

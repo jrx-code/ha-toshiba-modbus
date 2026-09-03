@@ -36,3 +36,17 @@ class ToshibaUnitEntity(CoordinatorEntity[ToshibaModbusCoordinator]):
         # Nieobecna jednostka zwraca poprawną ramkę zer, nie błąd - bez tego
         # testu encje pokazywałyby 0 °C i tryb "invalid" jako prawdziwe dane.
         return super().available and self.coordinator.present(self._unit)
+
+
+class ToshibaInterfaceEntity(CoordinatorEntity[ToshibaModbusCoordinator]):
+    """Encje samego interfejsu Modbus - nie należą do żadnej jednostki wewnętrznej."""
+
+    _attr_has_entity_name = True
+
+    def __init__(self, coordinator: ToshibaModbusCoordinator, key: str) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_iface_{key}"
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(identifiers={(DOMAIN, self.coordinator.entry.entry_id)})

@@ -56,7 +56,22 @@ the model, never a location.
 - `binary_sensor` — power, filter, alarm, compressor, and the five RAC function statuses
 
 Special-function switches disable themselves when register `30059` says the unit
-does not support them.
+does not support them. Every entity is enabled by default; the ones that mainly
+matter while commissioning carry the diagnostic category, so they sit in their own
+section of the device page instead of on the dashboard.
+
+## Entities for the interface itself
+
+The Modbus interface is its own device, with the indoor units nested under it:
+
+- `binary_sensor` — connectivity, which stays available precisely when the bus is not
+- `sensor` — bus messages, communication errors, messages to the interface, frames in
+  the last cycle, units present, slave address
+
+The three counters come from function `0x08`, which the interface answers itself and
+which never reaches the Uh bus, so they cost three frames per cycle and nothing on the
+appliances. The error counter is the one worth watching: rising while the connection
+looks fine means interference on RS-485 — or a second master on the same line.
 
 ## Hardware notes that cost time to find
 

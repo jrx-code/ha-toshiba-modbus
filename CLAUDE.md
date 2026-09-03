@@ -36,6 +36,16 @@ Remotes: `origin` = Forgejo, `github` = public mirror.
   interface needs a poll cycle before the readback registers change.
 - **`hvac_action` comes from the compressor bit** (`10004`), not from the mode
   register. Mode says what was asked for, the bit says what the unit is doing.
+- **Changing `entity_registry_enabled_default` does not re-enable existing entities.**
+  The registry keeps `disabled_by: integration` from the install that created them, so
+  the new default only reaches fresh installs. Re-enable the old ones over the
+  websocket with `config/entity_registry/update` and `disabled_by: None`.
+- **Counter reads must not fail the update.** `_read_counters` swallows its own errors
+  and stores `None`. They are diagnostics; letting them raise would take every climate
+  entity down with them when an interface answers registers but not `0x08`.
+- **The connectivity entity overrides `available` to `True`.** An entity that reports
+  connectivity has to survive the loss of it, otherwise it goes unavailable exactly
+  when it has something to say.
 - **Brand icons are local.** `brand/icon.png` + `@2x` (and dark variants) inside the
   component; no PR to `home-assistant/brands`, no manifest key. Changing them needs
   a full HA restart, not a config-entry reload.

@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import registers as reg
 from .const import DOMAIN
 from .coordinator import ToshibaModbusCoordinator
-from .entity import ToshibaUnitEntity
+from .entity import ToshibaInterfaceEntity, ToshibaUnitEntity
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -38,7 +38,6 @@ SENSORS: tuple[ToshibaSensorDescription, ...] = (
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
-        entity_registry_enabled_default=False,
         convert=lambda c, u: _tenths(c, u, "input", "setpoint"),
     ),
     ToshibaSensorDescription(
@@ -71,7 +70,6 @@ SENSORS: tuple[ToshibaSensorDescription, ...] = (
         translation_key="mode_status",
         device_class=SensorDeviceClass.ENUM,
         options=sorted(set(reg.HVAC_MODE_READ.values())),
-        entity_registry_enabled_default=False,
         convert=lambda c, u: reg.HVAC_MODE_READ.get(c.word(u, "input", "mode")),
     ),
     ToshibaSensorDescription(
@@ -79,7 +77,6 @@ SENSORS: tuple[ToshibaSensorDescription, ...] = (
         translation_key="fan_status",
         device_class=SensorDeviceClass.ENUM,
         options=sorted(set(reg.FAN_MODES.values())),
-        entity_registry_enabled_default=False,
         convert=lambda c, u: reg.FAN_MODES.get(c.word(u, "input", "fan")),
     ),
     ToshibaSensorDescription(
@@ -87,21 +84,18 @@ SENSORS: tuple[ToshibaSensorDescription, ...] = (
         translation_key="louver_status",
         device_class=SensorDeviceClass.ENUM,
         options=sorted(set(reg.LOUVER_MODES.values())),
-        entity_registry_enabled_default=False,
         convert=lambda c, u: reg.LOUVER_MODES.get(c.word(u, "input", "louver")),
     ),
     ToshibaSensorDescription(
         key="model", space="input", field="model",
         translation_key="model",
         entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=False,
         convert=lambda c, u: c.text(u, "model"),
     ),
     ToshibaSensorDescription(
         key="serial", space="input", field="serial",
         translation_key="serial",
         entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=False,
         convert=lambda c, u: c.text(u, "serial"),
     ),
 )
@@ -111,11 +105,13 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     coordinator: ToshibaModbusCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
+    entities: list[SensorEntity] = [
         ToshibaSensor(coordinator, unit, desc)
         for unit in coordinator.units
         for desc in SENSORS
-    )
+    ]
+    entities.extend(ToshibaInterfaceSensor(coordinator, desc) for desc in INTERFACE_SENSORS)
+    async_add_entities(entities)
 
 
 class ToshibaSensor(ToshibaUnitEntity, SensorEntity):
@@ -128,3 +124,62 @@ class ToshibaSensor(ToshibaUnitEntity, SensorEntity):
     @property
     def native_value(self):
         return self.entity_description.convert(self.coordinator, self._unit)
+
+
+@dataclass(frozen=True, kw_only=True)
+class ToshibaInterfaceSensorDescription(SensorEntityDescription):
+    read: Callable[[ToshibaModbusCoordinator], object]
+
+
+# Liczniki funkcji 0x08 odpowiada sam interfejs - nie schodzą na magistralę Uh.
+# Licznik błędów jest tu najważniejszy: rosnący przy stabilnym połączeniu oznacza
+# zakłócenia na RS-485 albo drugiego mastera na tej samej linii.
+INTERFACE_SENSORS: tuple[ToshibaInterfaceSensorDescription, ...] = (
+    ToshibaInterfaceSensorDescription(
+        key="bus_messages", translation_key="bus_messages",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        read=lambda c: c.counters["bus_messages"],
+    ),
+    ToshibaInterfaceSensorDescription(
+        key="bus_errors", translation_key="bus_errors",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        read=lambda c: c.counters["bus_errors"],
+    ),
+    ToshibaInterfaceSensorDescription(
+        key="device_messages", translation_key="device_messages",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        read=lambda c: c.counters["device_messages"],
+    ),
+    ToshibaInterfaceSensorDescription(
+        key="frames_last", translation_key="frames_last",
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        read=lambda c: c.frames_last,
+    ),
+    ToshibaInterfaceSensorDescription(
+        key="units_present", translation_key="units_present",
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        read=lambda c: sum(1 for u in c.units if c.present(u)),
+    ),
+    ToshibaInterfaceSensorDescription(
+        key="slave_address", translation_key="slave_address",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        read=lambda c: c.slave,
+    ),
+)
+
+
+class ToshibaInterfaceSensor(ToshibaInterfaceEntity, SensorEntity):
+    entity_description: ToshibaInterfaceSensorDescription
+
+    def __init__(self, coordinator, description: ToshibaInterfaceSensorDescription) -> None:
+        super().__init__(coordinator, description.key)
+        self.entity_description = description
+
+    @property
+    def native_value(self):
+        return self.entity_description.read(self.coordinator)
