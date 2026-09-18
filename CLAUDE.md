@@ -1,7 +1,9 @@
 # toshiba_modbus
 
-Custom integration for HA. Register map documented in the parent project
-(`../docs/08-modbus-interface.md`); manuals in `../docs/manuals/`.
+Custom integration for HA. Public-facing register and hardware notes live in
+`README.md` (especially *Hardware notes that cost time to find*). Deeper service
+manuals and site docs live in a private parent project and are not published with
+this repo.
 
 ## Where this lives and why
 
