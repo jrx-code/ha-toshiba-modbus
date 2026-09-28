@@ -129,7 +129,8 @@ Remotes: `origin` = Forgejo, `github` = public mirror.
   status. One 9-word frame. Decode the name without the last word, or `0x01 0x93` ends up
   glued to it. Read with the rare-event counters every `IFACE_SLOW_INTERVAL`, not per cycle.
 - **Serials for RAC units come from the options.** `coordinator.serial()` prefers the
-  register and falls back to `options["serials"]`. The options form labels fields with the
+  register and falls back to `options["serials"]`; `coordinator.model()` does the same with
+  `options["models"]` when the register holds the placeholder. The options form labels fields with the
   device's `name_by_user`, because the names stored in the entry are whatever the wizard
   wrote and can be wrong. Look the device up with `async_get_device_by_identifier`;
   `async_get_device` logs a deprecation warning and stops working in 2027.8.
@@ -140,4 +141,5 @@ Remotes: `origin` = Forgejo, `github` = public mirror.
 integration cannot disagree about addresses. It reproduces the three slave
 addresses, exception `0x02` on `N+2`, the zero-filled frame for an absent unit,
 function `0x08`, and the interface block `39985`-`39993`. `--no-serial 2,3` makes those
-units answer the serial register with `0xFF`, like the real RAC adapters.
+units answer the serial register with `0xFF`, and `--placeholder-model 2,3` makes them answer
+"RACIF Model Name", like the real RAC adapters.

@@ -49,6 +49,9 @@ SERIAL_PREFIX = "SN00000"
 # Jednostki, które na 30015-30022 oddają same 0xFF - tak odpowiada każdy z trzech
 # zainstalowanych RAC I/F (zmierzone 2026-09-28). Ustawiane z --no-serial.
 NO_SERIAL: set[int] = set()
+# Jednostki, które zamiast modelu oddają tekst zastępczy - tak odpowiadają dwa z trzech
+# zainstalowanych RAC I/F. Ustawiane z --placeholder-model.
+PLACEHOLDER_MODEL: set[int] = set()
 
 
 def crc16(data: bytes) -> bytes:
@@ -97,7 +100,8 @@ class Unit:
         if offset == table["check_code"]:
             return self.check_code
         if table["model"] <= offset < table["model"] + 8:
-            return ascii_words(MODEL, 8)[offset - table["model"]]
+            text = "RACIF Model Name" if self.n in PLACEHOLDER_MODEL else MODEL
+            return ascii_words(text, 8)[offset - table["model"]]
         if table["serial"] <= offset < table["serial"] + 8:
             if self.n in NO_SERIAL:
                 return 0xFFFF
@@ -337,8 +341,11 @@ def main() -> None:
     ap.add_argument("--absent", default="3", help="które z nich udają brak jednostki")
     ap.add_argument("--no-serial", default="",
                     help="które oddają numer seryjny jako same 0xFF, jak prawdziwy RAC I/F")
+    ap.add_argument("--placeholder-model", default="",
+                    help="które zamiast modelu oddają \"RACIF Model Name\"")
     args = ap.parse_args()
     NO_SERIAL.update(int(x) for x in args.no_serial.split(",") if x.strip())
+    PLACEHOLDER_MODEL.update(int(x) for x in args.placeholder_model.split(",") if x.strip())
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     present = [int(x) for x in args.units.split(",") if x.strip()]

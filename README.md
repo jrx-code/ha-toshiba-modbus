@@ -16,7 +16,9 @@ One device per interface and one per indoor unit, hung under it with `via_device
 Model and serial number come from registers `30007` and `30015`. A RAC adapter answers
 the serial register with `0xFF` only, so for RAC units the serial is typed in under
 *Configure* (from the nameplate or the Toshiba app); a value the interface does report
-always wins over a typed one.
+always wins over a typed one. The same step takes a model per unit, for adapters that
+answer the model register with the placeholder "RACIF Model Name" (two of three on the
+installed system).
 
 ## Why not the built-in `modbus` integration
 

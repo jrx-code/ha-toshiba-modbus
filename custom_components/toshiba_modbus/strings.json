@@ -44,8 +44,8 @@
         }
       },
       "serials": {
-        "title": "Serial numbers",
-        "description": "The RAC interface does not report serial numbers. Type them from the nameplate or the Toshiba app; leave a field empty to clear it."
+        "title": "Serial numbers and models",
+        "description": "The RAC interface does not report serial numbers, and some RAC adapters report \"RACIF Model Name\" instead of the model. Type them from the nameplate or the Toshiba app; a value the interface does report wins. An empty field clears it."
       }
     }
   },

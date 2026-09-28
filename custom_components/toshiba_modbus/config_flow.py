@@ -21,7 +21,7 @@ from . import registers as reg
 from .transport import call, link_params
 from .const import (
     CONF_DISCOVER_MAX, CONF_EXCLUDED, CONF_FRAMING, CONF_RESCAN_INTERVAL, CONF_SCAN_INTERVAL,
-    CONF_SERIALS,
+    CONF_MODELS, CONF_SERIALS,
     CONF_SLAVE, CONF_UNITS, DEFAULT_DISCOVER_MAX, DEFAULT_PORT,
     DEFAULT_RESCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DEFAULT_SLAVE,
     DOMAIN, FRAMING_RTUOVERTCP, FRAMINGS,
@@ -210,6 +210,7 @@ class ToshibaModbusOptionsFlow(OptionsFlow):
             self._options = options
             if not self._units():
                 options[CONF_SERIALS] = self.config_entry.options.get(CONF_SERIALS) or {}
+                options[CONF_MODELS] = self.config_entry.options.get(CONF_MODELS) or {}
                 return self.async_create_entry(data=options)
             return await self.async_step_serials()
         def now(key, fallback):
@@ -266,21 +267,26 @@ class ToshibaModbusOptionsFlow(OptionsFlow):
         return keys
 
     async def async_step_serials(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        keys = self._serial_keys()
+        """Numer seryjny i model każdej jednostki - dwa pola na jednostkę."""
+        labels = self._serial_keys()
+        fields = {
+            (unit, what): f"{label} · {suffix}"
+            for unit, label in labels.items()
+            for what, suffix in ((CONF_SERIALS, "S/N"), (CONF_MODELS, "model"))
+        }
         if user_input is not None:
-            serials = {
-                str(unit): value.strip()
-                for unit, key in keys.items()
-                if (value := user_input.get(key) or "").strip()
-            }
-            return self.async_create_entry(data={**self._options, CONF_SERIALS: serials})
-        current = self.config_entry.options.get(CONF_SERIALS) or {}
+            saved: dict[str, dict[str, str]] = {CONF_SERIALS: {}, CONF_MODELS: {}}
+            for (unit, what), key in fields.items():
+                if value := (user_input.get(key) or "").strip():
+                    saved[what][str(unit)] = value
+            return self.async_create_entry(data={**self._options, **saved})
+        current = {what: self.config_entry.options.get(what) or {} for what in (CONF_SERIALS, CONF_MODELS)}
         # suggested_value zamiast default - inaczej wyczyszczone pole wracałoby
-        # z poprzednią wartością i numeru nie dałoby się usunąć.
+        # z poprzednią wartością i wpisu nie dałoby się usunąć.
         return self.async_show_form(
             step_id="serials",
             data_schema=vol.Schema({
-                vol.Optional(key, description={"suggested_value": current.get(str(unit), "")}): str
-                for unit, key in keys.items()
+                vol.Optional(key, description={"suggested_value": current[what].get(str(unit), "")}): str
+                for (unit, what), key in fields.items()
             }),
         )

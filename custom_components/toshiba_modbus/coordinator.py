@@ -24,6 +24,7 @@ from .const import (
     CONF_DISCOVER_MAX,
     CONF_EXCLUDED,
     CONF_FRAMING,
+    CONF_MODELS,
     CONF_RESCAN_INTERVAL,
     CONF_SERIALS,
     CONF_SLAVE,
@@ -66,6 +67,9 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
         }
         self.serials: dict[int, str] = {
             int(k): v for k, v in (entry.options.get(CONF_SERIALS) or {}).items() if v
+        }
+        self.models: dict[int, str] = {
+            int(k): v for k, v in (entry.options.get(CONF_MODELS) or {}).items() if v
         }
 
         # Połączenie jest współdzielone i zwalniane przez rdzeń przy wyładowaniu wpisu.
@@ -385,10 +389,13 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
         return bool(self.text(unit, "model"))
 
     def model(self, unit: int) -> str | None:
-        """Nazwa modelu bez tekstu zastępczego adaptera. Obecność liczy się z
-        present() - "RACIF Model Name" też znaczy, że adapter odpowiada."""
+        """Nazwa modelu bez tekstu zastępczego adaptera, a w jego miejsce model
+        wpisany w opcjach. Obecność liczy się z present() - "RACIF Model Name" też
+        znaczy, że adapter odpowiada."""
         text = self.text(unit, "model")
-        return None if not text or text in reg.PLACEHOLDER_MODELS else text
+        if text and text not in reg.PLACEHOLDER_MODELS:
+            return text
+        return self.models.get(unit)
 
     def serial(self, unit: int) -> str | None:
         """Numer z interfejsu, a gdy go nie ma - wpisany w opcjach.

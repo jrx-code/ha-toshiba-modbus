@@ -44,6 +44,9 @@ IFACE_SLOW_INTERVAL: Final = 300.0
 # Numery seryjne jednostek wpisane w opcjach - RAC I/F odpowiada na 30015-30022
 # samymi 0xFF, więc jedynym źródłem jest tabliczka albo aplikacja Toshiba.
 CONF_SERIALS: Final = "serials"
+# Modele jednostek wpisane w opcjach - część adapterów RAC I/F oddaje zamiast nazwy
+# modelu tekst zastępczy "RACIF Model Name" (zmierzone 2026-09-28 na dwóch z trzech).
+CONF_MODELS: Final = "models"
 
 MANUFACTURER: Final = "Toshiba"
 INTERFACE_MODEL: Final = "BMS-IFMB1280U-E"

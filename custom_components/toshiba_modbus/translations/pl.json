@@ -44,8 +44,8 @@
         }
       },
       "serials": {
-        "title": "Numery seryjne",
-        "description": "Interfejs RAC nie podaje numerów seryjnych. Wpisz je z tabliczki znamionowej albo z aplikacji Toshiba; puste pole kasuje numer."
+        "title": "Numery seryjne i modele",
+        "description": "Interfejs RAC nie podaje numerów seryjnych, a część adapterów RAC zamiast modelu zwraca „RACIF Model Name”. Wpisz je z tabliczki znamionowej albo z aplikacji Toshiba; wartość podana przez interfejs ma pierwszeństwo. Puste pole kasuje wpis."
       }
     }
   },
