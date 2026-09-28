@@ -46,6 +46,9 @@ _LOG = logging.getLogger("emulator")
 
 MODEL = "RAS-B10N4KVRG-E"
 SERIAL_PREFIX = "SN00000"
+# Jednostki, które na 30015-30022 oddają same 0xFF - tak odpowiada każdy z trzech
+# zainstalowanych RAC I/F (zmierzone 2026-09-28). Ustawiane z --no-serial.
+NO_SERIAL: set[int] = set()
 
 
 def crc16(data: bytes) -> bytes:
@@ -96,6 +99,8 @@ class Unit:
         if table["model"] <= offset < table["model"] + 8:
             return ascii_words(MODEL, 8)[offset - table["model"]]
         if table["serial"] <= offset < table["serial"] + 8:
+            if self.n in NO_SERIAL:
+                return 0xFFFF
             return ascii_words(f"{SERIAL_PREFIX}{self.n}", 8)[offset - table["serial"]]
         if offset == table["capacity"]:
             return 25                          # 2,5 kW
@@ -188,15 +193,23 @@ class Interface:
         self.lock = threading.Lock()
         self.messages = 0
         self.crc_errors = 0
+        self.exceptions = 0
 
     def _locate(self, space: str, address: int) -> tuple[Unit | None, int]:
         stride = reg.STRIDE_BITS if space in ("coil", "discrete") else reg.STRIDE_WORDS
         number = address // stride + 1
         return self.units.get(number), address % stride
 
+    # Blok 39985-39993 z zainstalowanego interfejsu: nazwa, wersja 4.03, stan "praca".
+    INFO = reg.IFACE_INFO_START
+    INFO_WORDS = [0x424D, 0x532D, 0x4946, 0x4D42, 0x3132, 0x3830, 0x5500, 403, 2]
+
     def read(self, space: str, address: int, count: int) -> list[int]:
         out = []
         for i in range(count):
+            if space == "input" and 0 <= address + i - self.INFO < len(self.INFO_WORDS):
+                out.append(self.INFO_WORDS[address + i - self.INFO])
+                continue
             unit, offset = self._locate(space, address + i)
             if unit is None:
                 out.append(0)           # jednostka spoza konfiguracji: zera, nie wyjątek
@@ -266,8 +279,9 @@ class Handler(socketserver.BaseRequestHandler):
                 # Liczniki Modbus sa 16-bitowe i przewijaja sie przez zero. Bez maski
                 # emulator po 65535 ramkach rzucal struct.error przy kazdym 0x08,
                 # a klient czekal na timeout w kazdym cyklu.
-                data = {0x0B: iface.messages, 0x0C: iface.crc_errors,
-                        0x0E: iface.messages}.get(addr, qty) & 0xFFFF
+                data = {0x02: 0, 0x0B: iface.messages, 0x0C: iface.crc_errors,
+                        0x0D: iface.exceptions, 0x0E: iface.messages, 0x0F: 0,
+                        0x11: 0, 0x12: 0}.get(addr, qty) & 0xFFFF
                 body = bytes([slave, 0x08]) + struct.pack(">HH", addr, data)
                 return 8, body + crc16(body)
 
@@ -299,8 +313,12 @@ class Handler(socketserver.BaseRequestHandler):
             )
         return 8, body + crc16(body)
 
+    def _exception(self, slave: int, func: int, code: int) -> bytes:
+        self.server.iface.exceptions += 1  # type: ignore[attr-defined]
+        return self._raw_exception(slave, func, code)
+
     @staticmethod
-    def _exception(slave: int, func: int, code: int) -> bytes:
+    def _raw_exception(slave: int, func: int, code: int) -> bytes:
         body = bytes([slave, func | 0x80, code])
         return body + crc16(body)
 
@@ -317,7 +335,10 @@ def main() -> None:
     ap.add_argument("--slave", type=int, default=1)
     ap.add_argument("--units", default="1,2,3", help="adresy centralne jednostek")
     ap.add_argument("--absent", default="3", help="które z nich udają brak jednostki")
+    ap.add_argument("--no-serial", default="",
+                    help="które oddają numer seryjny jako same 0xFF, jak prawdziwy RAC I/F")
     args = ap.parse_args()
+    NO_SERIAL.update(int(x) for x in args.no_serial.split(",") if x.strip())
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     present = [int(x) for x in args.units.split(",") if x.strip()]

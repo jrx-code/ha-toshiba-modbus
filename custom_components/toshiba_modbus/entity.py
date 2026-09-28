@@ -30,7 +30,7 @@ class ToshibaUnitEntity(CoordinatorEntity[ToshibaModbusCoordinator]):
             name=c.unit_name(self._unit),
             manufacturer=MANUFACTURER,
             model=c.model(self._unit) or ADAPTER_MODEL,
-            serial_number=c.text(self._unit, "serial") or None,
+            serial_number=c.serial(self._unit),
             via_device_id=c.hub_device_id,
         )
 

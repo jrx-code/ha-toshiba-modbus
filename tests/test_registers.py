@@ -105,3 +105,17 @@ def test_write_status_targets_exist():
     for (space, key), (sspace, skey) in reg.WRITE_STATUS.items():
         reg.addr(space, 1, key)
         reg.addr(sspace, 1, skey)
+
+
+def test_interface_info_block():
+    """39985-39993 z zainstalowanego interfejsu: nazwa, wersja w ostatnim słowie, stan."""
+    assert reg.IFACE_INFO_START == 9984
+    words = [0x424D, 0x532D, 0x4946, 0x4D42, 0x3132, 0x3830, 0x5500, 0x0193, 2]
+    assert reg.decode_iface_info(words) == ("BMS-IFMB1280U", "4.03", "operating")
+    assert reg.IFACE_INFO_COUNT <= reg.MAX_READ_LEN
+
+
+def test_interface_info_missing_values():
+    """Zera albo 0xFFFF w słowie wersji to brak wersji, nie "0.00" czy "655.35"."""
+    assert reg.decode_iface_info([0] * 9) == (None, None, "undetermined")
+    assert reg.decode_iface_info([0] * 7 + [0xFFFF, 4])[1:] == (None, None)

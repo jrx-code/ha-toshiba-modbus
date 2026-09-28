@@ -14,13 +14,14 @@ from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFl
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import selector
+from homeassistant.helpers import device_registry as dr, selector
 from modbus_connection import ModbusConnectionError, ModbusError
 
 from . import registers as reg
 from .transport import call, link_params
 from .const import (
     CONF_DISCOVER_MAX, CONF_EXCLUDED, CONF_FRAMING, CONF_RESCAN_INTERVAL, CONF_SCAN_INTERVAL,
+    CONF_SERIALS,
     CONF_SLAVE, CONF_UNITS, DEFAULT_DISCOVER_MAX, DEFAULT_PORT,
     DEFAULT_RESCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DEFAULT_SLAVE,
     DOMAIN, FRAMING_RTUOVERTCP, FRAMINGS,
@@ -192,6 +193,9 @@ class ToshibaModbusConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class ToshibaModbusOptionsFlow(OptionsFlow):
+    def __init__(self) -> None:
+        self._options: dict[str, Any] = {}
+
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         excluded = sorted(
             int(x) for x in self.config_entry.options.get(CONF_EXCLUDED, [])
@@ -203,7 +207,11 @@ class ToshibaModbusOptionsFlow(OptionsFlow):
             restored = {int(x) for x in user_input.pop("restore", [])}
             options = dict(user_input)
             options[CONF_EXCLUDED] = sorted(a for a in excluded if a not in restored)
-            return self.async_create_entry(data=options)
+            self._options = options
+            if not self._units():
+                options[CONF_SERIALS] = self.config_entry.options.get(CONF_SERIALS) or {}
+                return self.async_create_entry(data=options)
+            return await self.async_step_serials()
         def now(key, fallback):
             return self.config_entry.options.get(
                 key, self.config_entry.data.get(key, fallback)
@@ -230,5 +238,49 @@ class ToshibaModbusOptionsFlow(OptionsFlow):
                         )
                     )
                 } if excluded else {}),
+            }),
+        )
+
+    def _units(self) -> list[int]:
+        """Jednostki z działającego koordynatora - skan w tle mógł dołożyć nowe od
+        założenia wpisu, a w danych wpisu ich nie ma."""
+        coordinator = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+        if coordinator is not None:
+            return list(coordinator.units)
+        return [int(u) for u in self.config_entry.data.get(CONF_UNITS, [])]
+
+    def _serial_keys(self) -> dict[int, str]:
+        """Etykiety pól z adresem i nazwą urządzenia nadaną przez użytkownika.
+
+        Nazwa z danych wpisu bywa nieaktualna (tak nazwał jednostki kreator), a
+        użytkownik rozpoznaje je po nazwie z rejestru urządzeń. Klucz jest zarazem
+        etykietą - pól z adresem w kluczu nie da się przetłumaczyć.
+        """
+        registry = dr.async_get(self.hass)
+        entry_id = self.config_entry.entry_id
+        keys: dict[int, str] = {}
+        for unit in self._units():
+            device = registry.async_get_device_by_identifier((DOMAIN, f"{entry_id}_{unit}"), entry_id)
+            name = (device.name_by_user or device.name) if device else None
+            keys[unit] = f"{unit} · {name}" if name else f"{unit}"
+        return keys
+
+    async def async_step_serials(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        keys = self._serial_keys()
+        if user_input is not None:
+            serials = {
+                str(unit): value.strip()
+                for unit, key in keys.items()
+                if (value := user_input.get(key) or "").strip()
+            }
+            return self.async_create_entry(data={**self._options, CONF_SERIALS: serials})
+        current = self.config_entry.options.get(CONF_SERIALS) or {}
+        # suggested_value zamiast default - inaczej wyczyszczone pole wracałoby
+        # z poprzednią wartością i numeru nie dałoby się usunąć.
+        return self.async_show_form(
+            step_id="serials",
+            data_schema=vol.Schema({
+                vol.Optional(key, description={"suggested_value": current.get(str(unit), "")}): str
+                for unit, key in keys.items()
             }),
         )

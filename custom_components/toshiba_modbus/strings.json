@@ -42,6 +42,10 @@
           "discover_max": "Scan central addresses up to",
           "restore": "Restore skipped units"
         }
+      },
+      "serials": {
+        "title": "Serial numbers",
+        "description": "The RAC interface does not report serial numbers. Type them from the nameplate or the Toshiba app; leave a field empty to clear it."
       }
     }
   },
@@ -91,6 +95,29 @@
       },
       "slave_address": {
         "name": "Slave address"
+      },
+      "iface_status": {
+        "name": "Interface status",
+        "state": {
+          "undetermined": "Undetermined",
+          "initializing": "Initializing",
+          "operating": "Operating",
+          "operating_with_controller": "Operating (central controller present)",
+          "suspended": "Suspended",
+          "address_duplicated": "Controller address duplicated"
+        }
+      },
+      "exceptions": {
+        "name": "Exception responses"
+      },
+      "no_response": {
+        "name": "Messages without response"
+      },
+      "busy": {
+        "name": "Busy responses"
+      },
+      "overrun": {
+        "name": "Character overruns"
       }
     },
     "binary_sensor": {

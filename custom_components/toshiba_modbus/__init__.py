@@ -45,6 +45,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         model=INTERFACE_MODEL,
         name=f"Interfejs Modbus ({coordinator.host})",
         configuration_url=f"http://{coordinator.host}",
+        # Nieodczytana wersja nie może skasować tej zapisanej przy poprzednim starcie.
+        **({"sw_version": v} if (v := coordinator.iface["version"]) else {}),
     )
     coordinator.hub_device_id = hub.id
 

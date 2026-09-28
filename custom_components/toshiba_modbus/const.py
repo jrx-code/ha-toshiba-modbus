@@ -38,6 +38,12 @@ DEFAULT_DISCOVER_MAX: Final = 8
 # Jak często szukać jednostek, które jeszcze się nie zgłosiły. Skanowane są tylko
 # adresy nieznane, więc po znalezieniu kompletu ten interwał nic nie kosztuje.
 DEFAULT_RESCAN_INTERVAL: Final = 300
+# Stan interfejsu i liczniki rzadkich zdarzeń. Pięć ramek co tyle sekund zamiast
+# w każdym cyklu - cykl trzech jednostek zajmuje już ~24 s z 30.
+IFACE_SLOW_INTERVAL: Final = 300.0
+# Numery seryjne jednostek wpisane w opcjach - RAC I/F odpowiada na 30015-30022
+# samymi 0xFF, więc jedynym źródłem jest tabliczka albo aplikacja Toshiba.
+CONF_SERIALS: Final = "serials"
 
 MANUFACTURER: Final = "Toshiba"
 INTERFACE_MODEL: Final = "BMS-IFMB1280U-E"

@@ -14,6 +14,7 @@ from homeassistant.components.modbus import async_get_unit
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from modbus_connection import ModbusError, ModbusUnit
@@ -24,12 +25,14 @@ from .const import (
     CONF_EXCLUDED,
     CONF_FRAMING,
     CONF_RESCAN_INTERVAL,
+    CONF_SERIALS,
     CONF_SLAVE,
     CONF_UNITS,
     DEFAULT_DISCOVER_MAX,
     DEFAULT_RESCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     FRAMING_RTUOVERTCP,
+    IFACE_SLOW_INTERVAL,
     OPTIMISTIC_HOLD,
     SIGNAL_NEW_UNIT,
 )
@@ -61,6 +64,9 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
         self.names: dict[int, str] = {
             int(k): v for k, v in (entry.data.get("names") or {}).items()
         }
+        self.serials: dict[int, str] = {
+            int(k): v for k, v in (entry.options.get(CONF_SERIALS) or {}).items() if v
+        }
 
         # Połączenie jest współdzielone i zwalniane przez rdzeń przy wyładowaniu wpisu.
         self._rtu = self.framing == FRAMING_RTUOVERTCP
@@ -78,6 +84,13 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
         self.counters: dict[str, int | None] = {
             "bus_messages": None, "bus_errors": None, "device_messages": None,
         }
+        # Stan interfejsu i rzadziej potrzebne liczniki. Czytane co IFACE_SLOW_INTERVAL,
+        # bo każda ramka to ~0,9 s, a cykl ma już ~30 ramek przy interwale 30 s.
+        self.iface: dict[str, Any] = {
+            "software": None, "version": None, "status": None,
+            "exceptions": None, "no_response": None, "busy": None, "overrun": None,
+        }
+        self._slow_due = 0.0
 
         self.discover_max: int = int(
             entry.options.get(CONF_DISCOVER_MAX,
@@ -155,6 +168,7 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
             for i, value in enumerate(values):
                 data[space][start + i] = value
         frames += await self._read_counters()
+        frames += await self._read_interface_if_due()
         frames += await self._rescan_if_due(data)
         self.frames_last = frames
         self._apply_optimistic(data)
@@ -284,6 +298,49 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
                 self.counters[name] = None
         return frames
 
+    async def _read_interface_if_due(self) -> int:
+        """Wersja, stan i liczniki rzadkich zdarzeń - raz na IFACE_SLOW_INTERVAL.
+
+        Tak jak liczniki, połyka własne błędy: to diagnostyka, nie powód, żeby
+        jednostki poszły w unavailable.
+        """
+        now = time.monotonic()
+        if now < self._slow_due:
+            return 0
+        self._slow_due = now + IFACE_SLOW_INTERVAL
+        frames = 0
+        start, count = reg.IFACE_INFO_START, reg.IFACE_INFO_COUNT
+        try:
+            words = await call(
+                self._unit, lambda: self._unit.read_input_registers(start, count), rtu=self._rtu)
+            frames += 1
+            software, version, status = reg.decode_iface_info([int(w) for w in words])
+            self.iface.update(software=software, version=version, status=status)
+        except ModbusError as err:
+            _LOGGER.debug("stan interfejsu niedostępny: %s", err)
+            self.iface["status"] = None
+        calls = (("exceptions", 0x0D), ("no_response", 0x0F), ("busy", 0x11), ("overrun", 0x12))
+        for name, sub in calls:
+            try:
+                self.iface[name] = int(
+                    await call(self._unit, lambda sub=sub: self._unit.diagnostics(sub), rtu=self._rtu))
+                frames += 1
+            except ModbusError as err:
+                _LOGGER.debug("licznik %s niedostępny: %s", name, err)
+                self.iface[name] = None
+        self._publish_version()
+        return frames
+
+    def _publish_version(self) -> None:
+        """Wersja oprogramowania trafia do urządzenia interfejsu, nie do encji."""
+        version = self.iface["version"]
+        if not version or self.hub_device_id is None:
+            return
+        registry = dr.async_get(self.hass)
+        device = registry.async_get(self.hub_device_id)
+        if device is not None and device.sw_version != version:
+            registry.async_update_device(self.hub_device_id, sw_version=version)
+
     # ----------------------------------------------------------------- zapis
 
     async def _write(self, what: str, address: int, request) -> None:
@@ -333,6 +390,13 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
         text = self.text(unit, "model")
         return None if not text or text in reg.PLACEHOLDER_MODELS else text
 
+    def serial(self, unit: int) -> str | None:
+        """Numer z interfejsu, a gdy go nie ma - wpisany w opcjach.
+
+        Odczyt wygrywa: jeśli kiedyś interfejs zacznie go podawać, to on jest źródłem.
+        """
+        return self.text(unit, "serial") or self.serials.get(unit)
+
     def unit_name(self, unit: int) -> str:
         return self.names.get(unit) or f"Unit {unit}"
 
@@ -349,6 +413,7 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
             "excluded": self.excluded,
             "frames_last": self.frames_last,
             "counters": dict(self.counters),
+            "interface": dict(self.iface),
             "optimistic": len(self._optimistic),
             "plan": [{"space": s, "start": a, "count": c} for s, a, c in self._plan],
         }

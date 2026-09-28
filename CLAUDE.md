@@ -124,9 +124,20 @@ Remotes: `origin` = Forgejo, `github` = public mirror.
   because `Host *` in the local ssh config disables password auth. Addresses are in the
   session memory, not here — this file is public.
 
+- **Interface data sits past unit 64, on slave N.** `39985`-`39992` is the software name in
+  ASCII with the version x100 in the last word (0x0193 = 4.03), `39993` the interface
+  status. One 9-word frame. Decode the name without the last word, or `0x01 0x93` ends up
+  glued to it. Read with the rare-event counters every `IFACE_SLOW_INTERVAL`, not per cycle.
+- **Serials for RAC units come from the options.** `coordinator.serial()` prefers the
+  register and falls back to `options["serials"]`. The options form labels fields with the
+  device's `name_by_user`, because the names stored in the entry are whatever the wizard
+  wrote and can be wrong. Look the device up with `async_get_device_by_identifier`;
+  `async_get_device` logs a deprecation warning and stops working in 2027.8.
+
 ## Emulator
 
 `tools/emulator.py` imports `registers.py` by path, so the emulator and the
 integration cannot disagree about addresses. It reproduces the three slave
 addresses, exception `0x02` on `N+2`, the zero-filled frame for an absent unit,
-and function `0x08`.
+function `0x08`, and the interface block `39985`-`39993`. `--no-serial 2,3` makes those
+units answer the serial register with `0xFF`, like the real RAC adapters.

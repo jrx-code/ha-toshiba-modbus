@@ -42,6 +42,10 @@
           "discover_max": "Przeszukaj adresy centralne do",
           "restore": "Przywróć pominięte jednostki"
         }
+      },
+      "serials": {
+        "title": "Numery seryjne",
+        "description": "Interfejs RAC nie podaje numerów seryjnych. Wpisz je z tabliczki znamionowej albo z aplikacji Toshiba; puste pole kasuje numer."
       }
     }
   },
@@ -91,6 +95,29 @@
       },
       "slave_address": {
         "name": "Adres slave"
+      },
+      "iface_status": {
+        "name": "Stan interfejsu",
+        "state": {
+          "undetermined": "Nieustalony",
+          "initializing": "Inicjalizacja",
+          "operating": "Praca",
+          "operating_with_controller": "Praca (jest sterownik centralny)",
+          "suspended": "Zawieszony",
+          "address_duplicated": "Zduplikowany adres sterownika"
+        }
+      },
+      "exceptions": {
+        "name": "Odpowiedzi z wyjątkiem"
+      },
+      "no_response": {
+        "name": "Komunikaty bez odpowiedzi"
+      },
+      "busy": {
+        "name": "Odpowiedzi „zajęty”"
+      },
+      "overrun": {
+        "name": "Przepełnienia znaków"
       }
     },
     "binary_sensor": {

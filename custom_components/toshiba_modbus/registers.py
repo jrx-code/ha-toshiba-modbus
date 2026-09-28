@@ -182,6 +182,33 @@ def decode_ascii(words: list[int]) -> str:
     return "".join(chr(b) for b in raw if 0x20 <= b <= 0x7E).strip()
 
 
+# Dane samego interfejsu, na slave N (za blokiem jednostki 64). Service manual rev. 7,
+# tabela input: 39985-39992 nazwa oprogramowania w ASCII i w ostatnim słowie wersja
+# razy 100, 39993 stan interfejsu. Jedna ramka, 9 słów - poniżej limitu 16 bramki.
+IFACE_INFO_START: Final = 39985 - 30001
+IFACE_INFO_COUNT: Final = 9
+IFACE_STATUS: Final = {
+    0: "undetermined", 1: "initializing", 2: "operating", 3: "operating_with_controller",
+    5: "suspended", 6: "address_duplicated",
+}
+
+
+def decode_iface_info(words: list[int]) -> tuple[str | None, str | None, str | None]:
+    """(nazwa oprogramowania, wersja "x.yy", stan) z bloku 39985-39993.
+
+    Na zainstalowanym interfejsie: "BMS-IFMB1280U", słowo 0x0193 = 4.03, stan 2
+    (zmierzone 2026-09-28). Wersja siedzi w ostatnim słowie pola tekstowego, więc
+    tekst dekodowany jest bez niego - inaczej 0x01 0x93 doklejałoby się do nazwy.
+    """
+    if len(words) < IFACE_INFO_COUNT:
+        return None, None, None
+    name = decode_ascii(words[:7]) or None
+    raw = words[7]
+    version = None if raw in (0, NOT_AVAILABLE) else f"{raw // 100}.{raw % 100:02d}"
+    status = IFACE_STATUS.get(words[8])
+    return name, version, status
+
+
 # Tekst, który RAC I/F oddaje zamiast nazwy modelu, gdy jej nie zna. Zmierzone
 # 2026-09-28: jednostka 1 zwraca "RAS-B10N4KVRG-E1", jednostki 2 i 3 dokładnie to.
 # Obecność potwierdza (adapter odpowiada), ale modelem nie jest.

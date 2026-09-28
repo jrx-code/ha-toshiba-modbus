@@ -8,5 +8,5 @@
   "integration_type": "hub",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/jrx-code/ha-toshiba-modbus/issues",
-  "version": "0.4.1"
+  "version": "0.4.2"
 }

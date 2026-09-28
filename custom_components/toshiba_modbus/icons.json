@@ -15,7 +15,12 @@
       "device_messages": { "default": "mdi:message-arrow-right-outline" },
       "frames_last": { "default": "mdi:counter" },
       "units_present": { "default": "mdi:home-thermometer-outline" },
-      "slave_address": { "default": "mdi:numeric" }
+      "slave_address": { "default": "mdi:numeric" },
+      "iface_status": { "default": "mdi:check-network-outline" },
+      "exceptions": { "default": "mdi:alert-circle-outline" },
+      "no_response": { "default": "mdi:message-alert-outline" },
+      "busy": { "default": "mdi:timer-sand" },
+      "overrun": { "default": "mdi:tray-full" }
     },
     "binary_sensor": {
       "power": { "default": "mdi:power-standby", "state": { "on": "mdi:power" } },

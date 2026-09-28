@@ -102,7 +102,7 @@ SENSORS: tuple[ToshibaSensorDescription, ...] = (
         key="serial", space="input", field="serial",
         translation_key="serial",
         entity_category=EntityCategory.DIAGNOSTIC,
-        convert=lambda c, u: c.text(u, "serial") or None,
+        convert=lambda c, u: c.serial(u),
     ),
 )
 
@@ -184,6 +184,41 @@ INTERFACE_SENSORS: tuple[ToshibaInterfaceSensorDescription, ...] = (
         key="slave_address", translation_key="slave_address",
         entity_category=EntityCategory.DIAGNOSTIC,
         read=lambda c: c.slave,
+    ),
+    # Stan z rejestru 39993. "suspended" i "address_duplicated" to awarie konfiguracji:
+    # interfejs żyje, odpowiada na 0x08, ale jednostek nie obsługuje.
+    ToshibaInterfaceSensorDescription(
+        key="iface_status", translation_key="iface_status",
+        device_class=SensorDeviceClass.ENUM,
+        options=sorted(set(reg.IFACE_STATUS.values())),
+        entity_category=EntityCategory.DIAGNOSTIC,
+        read=lambda c: c.iface["status"],
+    ),
+    # Liczniki rzadkich zdarzeń, czytane co kilka minut. Rosnący "bez odpowiedzi" przy
+    # stałych błędach CRC wskazuje raczej na drugiego mastera niż na zakłócenia.
+    ToshibaInterfaceSensorDescription(
+        key="exceptions", translation_key="exceptions",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        read=lambda c: c.iface["exceptions"],
+    ),
+    ToshibaInterfaceSensorDescription(
+        key="no_response", translation_key="no_response",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        read=lambda c: c.iface["no_response"],
+    ),
+    ToshibaInterfaceSensorDescription(
+        key="busy", translation_key="busy",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        read=lambda c: c.iface["busy"],
+    ),
+    ToshibaInterfaceSensorDescription(
+        key="overrun", translation_key="overrun",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        read=lambda c: c.iface["overrun"],
     ),
 )
 

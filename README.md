@@ -13,8 +13,10 @@ indoor unit --UART(CN50)--> RAC I/F --Uh line--> BMS-IFMB1280U-E --RS-485--> gat
 ![Integration page: two interfaces, each with the indoor units below it](docs/images/integration.png)
 
 One device per interface and one per indoor unit, hung under it with `via_device`.
-Model and serial number come from registers `30007` and `30015`, not from the
-configuration.
+Model and serial number come from registers `30007` and `30015`. A RAC adapter answers
+the serial register with `0xFF` only, so for RAC units the serial is typed in under
+*Configure* (from the nameplate or the Toshiba app); a value the interface does report
+always wins over a typed one.
 
 ## Why not the built-in `modbus` integration
 
@@ -140,12 +142,22 @@ The Modbus interface is its own device, with the indoor units nested under it:
 
 - `binary_sensor` — connectivity, which stays available precisely when the bus is not
 - `sensor` — bus messages, communication errors, messages to the interface, frames in
-  the last cycle, units present, slave address
+  the last cycle, units present, slave address, interface status, and four rare-event
+  counters: exception responses, messages without response, busy responses, character
+  overruns
+
+The interface's software version (registers `39985`–`39992`, `4.03` on the installed
+unit) is shown as the firmware of the interface device.
 
 The three counters come from function `0x08`, which the interface answers itself and
 which never reaches the Uh bus, so they cost three frames per cycle and nothing on the
 appliances. The error counter is the one worth watching: rising while the connection
 looks fine means interference on RS-485 — or a second master on the same line.
+
+Interface status (register `39993`) and the four rare-event counters are read every
+five minutes, not every cycle: each frame costs about 0.9 s, and three units already
+take about 24 s of a 30 s interval. `suspended` and `address_duplicated` are the states
+to alert on — the interface still answers diagnostics, but no longer serves the units.
 
 ## Hardware notes that cost time to find
 
