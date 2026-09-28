@@ -263,8 +263,11 @@ class Handler(socketserver.BaseRequestHandler):
 
             if func == 0x08:
                 # Pętla zwrotna i liczniki - odpowiada sam interfejs.
+                # Liczniki Modbus sa 16-bitowe i przewijaja sie przez zero. Bez maski
+                # emulator po 65535 ramkach rzucal struct.error przy kazdym 0x08,
+                # a klient czekal na timeout w kazdym cyklu.
                 data = {0x0B: iface.messages, 0x0C: iface.crc_errors,
-                        0x0E: iface.messages}.get(addr, qty)
+                        0x0E: iface.messages}.get(addr, qty) & 0xFFFF
                 body = bytes([slave, 0x08]) + struct.pack(">HH", addr, data)
                 return 8, body + crc16(body)
 
