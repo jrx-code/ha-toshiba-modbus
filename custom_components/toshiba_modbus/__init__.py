@@ -8,6 +8,7 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryError, HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN, INTERFACE_MODEL, MANUFACTURER
@@ -24,7 +25,12 @@ PLATFORMS: list[Platform] = [
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    coordinator = ToshibaModbusCoordinator(hass, entry)
+    try:
+        coordinator = ToshibaModbusCoordinator(hass, entry)
+    except HomeAssistantError as err:
+        # Rdzeń odmawia, gdy ta sama bramka jest już w użyciu z innymi ustawieniami
+        # łącza (np. drugi wpis z innym ramkowaniem) - jedno połączenie nie obsłuży obu.
+        raise ConfigEntryError(str(err)) from err
     await coordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
@@ -50,8 +56,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
-        coordinator: ToshibaModbusCoordinator = hass.data[DOMAIN].pop(entry.entry_id)
-        await coordinator.async_close()
+        # Połączenie zamyka rdzeń, gdy odpadnie ostatni wpis, który z niego korzysta.
+        hass.data[DOMAIN].pop(entry.entry_id)
     return unloaded
 
 

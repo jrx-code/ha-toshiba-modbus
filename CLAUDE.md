@@ -38,13 +38,22 @@ Remotes: `origin` = Forgejo, `github` = public mirror.
 - **Presence is the model-name string.** A missing unit returns a valid frame of
   zeros, so every entity hangs its `available` on `coordinator.present()`. Without
   it the UI shows 0 °C and mode `invalid` as if they were readings.
-- **One lock over the bus.** The coordinator serialises reads and writes through
-  `asyncio.Lock` and keeps a single client. Gateways accept several TCP clients but
-  deliver replies to the wrong one — measured on an EW11, both sockets received the
-  same frame. Never open a second client "just for writes".
-- **Writes echo the request.** Functions `0x05`/`0x06` return the request frame,
-  which pymodbus accepts; the coordinator then forces a refresh, because the
-  interface needs a poll cycle before the readback registers change.
+- **The link is borrowed from core (0.4.0, HA 2026.9).** `async_get_unit` hands out a
+  unit on a connection the core shares per gateway and paces request by request, so two
+  entries or integrations on one gateway queue instead of colliding. Gateways accept
+  several TCP clients but deliver replies to the wrong one — measured on an EW11, both
+  sockets received the same frame — so never open a private client next to it. A master
+  outside Home Assistant (the `modbus-ui` panel) is still a second master.
+- **The core's link has a fixed 10 s timeout and no retries.** `transport.call` bounds
+  each request at 3 s once the link is up, and leaves the opening of the link alone:
+  cancelling the core's shielded connect makes asyncio log "exception in shielded
+  future" on every unreachable cycle. On timeout it drops an RTU link (no transaction id,
+  a late answer would pass as the next one) but keeps MBAP, which discards the stale
+  transaction id — measured on the Waveshare, reads after an abandoned request answer in
+  ~0.8 s. Dropping MBAP anyway would put the next request under the 10 s limit again.
+- **Writes show at once and are confirmed by the poll.** The interface needs a poll
+  cycle before the status registers change, so the written value is held over the data
+  until a read confirms it, contradicts it, or 60 s pass.
 - **`hvac_action` comes from the compressor bit** (`10004`), not from the mode
   register. Mode says what was asked for, the bit says what the unit is doing.
 - **Zero indoor units is a valid config entry.** The interface answers while the Uh bus
@@ -66,10 +75,11 @@ Remotes: `origin` = Forgejo, `github` = public mirror.
 - **The options flow replaces options wholesale.** `async_create_entry(data=...)` in an
   OptionsFlow overwrites everything, so `excluded` has to be rebuilt into the payload on
   every save or it silently disappears.
-- **`ModbusIOException` is not an `OSError`.** pymodbus raises it when nothing answers
-  after its retries, and it escapes `except (ConnectionError, OSError)` entirely — the
-  config flow then returns HTTP 500 with the traceback only in the container log. Catch
-  `ModbusException` from `pymodbus.exceptions`.
+- **Catch `ModbusError`, not `OSError`.** Everything the core's link raises derives from
+  `modbus_connection.ModbusError`; `ModbusConnectionError` is the refused or unreachable
+  host, anything else on an open link is a silent or confused interface. The config flow
+  maps them to `cannot_connect` and `no_reply`, and `HomeAssistantError` from the core
+  (the gateway already held with other framing) to `in_use`.
 - **Two failures, two messages.** A refused TCP connect means the address or port is
   wrong; an open socket with no valid reply means framing, slave address, or a second
   master on the line. Telling the user to check framing when nothing is listening on the

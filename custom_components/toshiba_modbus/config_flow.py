@@ -9,19 +9,20 @@ import asyncio
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.components.modbus import async_get_temporary_unit
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow, ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import selector
-from pymodbus.client import AsyncModbusTcpClient
-from pymodbus.exceptions import ModbusException
-from pymodbus.framer import FramerType
+from modbus_connection import ModbusConnectionError, ModbusError
 
 from . import registers as reg
+from .transport import call, link_params
 from .const import (
     CONF_DISCOVER_MAX, CONF_EXCLUDED, CONF_FRAMING, CONF_RESCAN_INTERVAL, CONF_SCAN_INTERVAL,
     CONF_SLAVE, CONF_UNITS, DEFAULT_DISCOVER_MAX, DEFAULT_PORT,
-    DEFAULT_RESCAN_INTERVAL, DEFAULT_RETRIES, DEFAULT_SCAN_INTERVAL, DEFAULT_SLAVE, DEFAULT_TIMEOUT,
+    DEFAULT_RESCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DEFAULT_SLAVE,
     DOMAIN, FRAMING_RTUOVERTCP, FRAMINGS,
 )
 
@@ -62,7 +63,7 @@ class NoReply(Exception):
 
 
 async def _discover(
-    host: str, port: int, framing: str, slave: int, limit: int
+    hass: HomeAssistant, host: str, port: int, framing: str, slave: int, limit: int
 ) -> dict[int, tuple[str, str]]:
     """Nazwa modelu jest jedynym pewnym testem obecności - nieobecna jednostka
     oddaje poprawną ramkę zer, nie wyjątek.
@@ -70,34 +71,30 @@ async def _discover(
     Rozdzielamy dwie porażki, bo prowadzą do zupełnie innych rzeczy do sprawdzenia:
     nieudane połączenie TCP to zły adres albo port, a brak odpowiedzi na otwartym
     gnieździe to ramkowanie, adres slave albo drugi master na tej samej linii.
+    Połączenie pożyczamy od rdzenia na czas kreatora; jeśli wpis już je trzyma,
+    zostaje otwarte.
     """
-    framer = FramerType.RTU if framing == FRAMING_RTUOVERTCP else FramerType.SOCKET
-    client = AsyncModbusTcpClient(host=host, port=port, framer=framer,
-                                  timeout=DEFAULT_TIMEOUT, retries=DEFAULT_RETRIES)
-    if not await client.connect():
-        raise ConnectionError(f"nic nie nasłuchuje na {host}:{port}")
     found: dict[int, tuple[str, str]] = {}
+    async with async_get_temporary_unit(hass, link_params(host, port, framing), slave) as unit:
 
-    async def text(unit: int, key: str) -> str:
-        result = await client.read_input_registers(
-            address=reg.addr("input", unit, key),
-            count=reg.width("input", key),
-            device_id=slave,
-        )
-        if result.isError():
-            raise NoReply(f"interfejs nie odpowiedział na odczyt jednostki {unit}: {result}")
-        return reg.decode_ascii(list(result.registers))
+        async def text(n: int, key: str) -> str:
+            start, count = reg.addr("input", n, key), reg.width("input", key)
+            try:
+                words = await call(unit, lambda: unit.read_input_registers(start, count),
+                                   rtu=framing == FRAMING_RTUOVERTCP)
+            except ModbusConnectionError:
+                raise
+            except ModbusError as err:
+                raise NoReply(f"interfejs nie odpowiedział na odczyt jednostki {n}: {err}") from err
+            return reg.decode_ascii(list(words))
 
-    try:
-        for unit in range(1, limit + 1):
-            model = await text(unit, "model")
+        for n in range(1, limit + 1):
+            model = await text(n, "model")
             if not model:
                 continue
             # Numer seryjny czytamy dopiero dla jednostek obecnych - dla pustych
             # adresów byłaby to druga ramka po nic.
-            found[unit] = (model, await text(unit, "serial"))
-    finally:
-        client.close()
+            found[n] = (model, await text(n, "serial"))
     return found
 
 
@@ -117,17 +114,19 @@ class ToshibaModbusConfigFlow(ConfigFlow, domain=DOMAIN):
             try:
                 self._found = await asyncio.wait_for(
                     _discover(
+                        self.hass,
                         user_input[CONF_HOST], user_input[CONF_PORT], user_input[CONF_FRAMING],
                         user_input[CONF_SLAVE], user_input[CONF_DISCOVER_MAX],
                     ),
                     timeout=120,
                 )
-            except (NoReply, ModbusException):
-                # ModbusIOException ("no response after 3 retries") nie dziedziczy po
-                # OSError, więc bez tego wypadał aż do warstwy HTTP jako błąd 500.
+            except NoReply:
                 errors["base"] = "no_reply"
-            except (ConnectionError, asyncio.TimeoutError, OSError):
+            except (ModbusConnectionError, asyncio.TimeoutError, OSError):
                 errors["base"] = "cannot_connect"
+            except HomeAssistantError:
+                # Ta bramka jest już w użyciu przez rdzeń z innym ramkowaniem.
+                errors["base"] = "in_use"
             else:
                 self._data = dict(user_input)
                 if not self._found:

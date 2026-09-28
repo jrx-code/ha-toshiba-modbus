@@ -25,7 +25,8 @@
     },
     "error": {
       "cannot_connect": "Nothing is listening on that address and port. Check the gateway address and port — serial gateways usually 8899 or 502, the emulator 5502.",
-      "no_reply": "The connection is up but the interface does not answer. Check the framing, the slave address (switch SW1), and that nothing else is polling the bus at the same moment."
+      "no_reply": "The connection is up but the interface does not answer. Check the framing, the slave address (switch SW1), and that nothing else is polling the bus at the same moment.",
+      "in_use": "This gateway is already in use in Home Assistant with a different framing or port. One connection cannot serve both - use the same settings as the existing entry."
     },
     "abort": {
       "already_configured": "This interface is already configured."

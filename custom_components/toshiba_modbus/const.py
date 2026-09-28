@@ -24,12 +24,11 @@ FRAMINGS: Final = (FRAMING_RTUOVERTCP, FRAMING_TCP)
 DEFAULT_PORT: Final = 8899
 DEFAULT_SLAVE: Final = 1
 DEFAULT_SCAN_INTERVAL: Final = 30
-# Jedna transakcja przez bramkę Waveshare trwa ~800 ms niezależnie od długości
-# (zmierzone 2026-09-03), więc 3 s zostawia zapas. Przy domyślnych w pymodbus
-# retries=3 i timeout 5 s jedna cicha ramka blokowała magistralę na 20 s, a zapis
-# czekał za nią w kolejce.
+# Limit na jedno zapytanie. Jedna transakcja przez bramkę Waveshare trwa ~800 ms
+# niezależnie od długości (zmierzone 2026-09-03), więc 3 s zostawia zapas.
+# Współdzielone połączenie rdzenia ma na sztywno 10 s i żadnych ponowień, a każda
+# cicha ramka trzymałaby całą kolejkę - razem z zapisami - tyle, ile ten limit.
 DEFAULT_TIMEOUT: Final = 3.0
-DEFAULT_RETRIES: Final = 1
 # Ile trzymać wartość pokazaną zaraz po zapisie, zanim interfejs zgłosi ją w
 # rejestrze statusu. Po tym czasie wygrywa to, co przyszło z magistrali.
 OPTIMISTIC_HOLD: Final = 60.0

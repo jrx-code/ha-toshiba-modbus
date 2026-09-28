@@ -31,6 +31,12 @@ this map runs straight into:
 
 ## Install
 
+Requires Home Assistant **2026.9** or later. Since 0.4.0 the integration borrows its
+Modbus link from the core `modbus` integration (`async_get_unit`), which shares one
+connection per gateway between every entry and integration that asks for it and queues
+their requests behind it. Nothing needs configuring in `modbus` itself; it is loaded as
+a dependency.
+
 **HACS** — add this repository as a custom repository of type *Integration*,
 install, restart Home Assistant. HACS pulls `toshiba_modbus.zip` from the release and
 unpacks it into `custom_components/toshiba_modbus`, so an install is one download
@@ -203,4 +209,5 @@ is not affiliated with, authorised by or endorsed by it; the artwork in
 `custom_components/toshiba_modbus/brand/` is built from the manufacturer's own
 product images and identifies the hardware the integration talks to.
 
-`pymodbus`, the only runtime dependency, is BSD-3-Clause.
+The Modbus link comes from Home Assistant's core `modbus` integration and its
+`modbus-connection` library (Apache-2.0); the integration adds no runtime dependency of its own.
