@@ -29,9 +29,9 @@ class ToshibaUnitEntity(CoordinatorEntity[ToshibaModbusCoordinator]):
             identifiers={(DOMAIN, f"{c.entry.entry_id}_{self._unit}")},
             name=c.unit_name(self._unit),
             manufacturer=MANUFACTURER,
-            model=c.text(self._unit, "model") or ADAPTER_MODEL,
+            model=c.model(self._unit) or ADAPTER_MODEL,
             serial_number=c.text(self._unit, "serial") or None,
-            via_device=(DOMAIN, c.entry.entry_id),
+            via_device_id=c.hub_device_id,
         )
 
     @property

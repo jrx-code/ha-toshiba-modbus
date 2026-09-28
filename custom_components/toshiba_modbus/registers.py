@@ -91,6 +91,22 @@ HOLDING: Final = {
     "rc_lock": 9, "save": 10,
 }
 
+# Zapis trafia do rejestru polecenia, a stan jednostki czyta się z innego - tego,
+# który interfejs odświeża po obejściu magistrali Uh. Ta mapa mówi, gdzie pokazać
+# zapisaną wartość, zanim interfejs ją potwierdzi. Pola spoza mapy (rc_lock, save)
+# czyta się z tego samego rejestru, do którego się pisze.
+WRITE_STATUS: Final = {
+    ("holding", "setpoint"): ("input", "setpoint"),
+    ("holding", "mode"): ("input", "mode"),
+    ("holding", "fan"): ("input", "fan"),
+    ("holding", "louver"): ("input", "louver"),
+    ("coil", "onoff"): ("discrete", "onoff"),
+    ("coil", "hi_power"): ("discrete", "st_hi_power"),
+    ("coil", "eco"): ("discrete", "st_eco"),
+    ("coil", "quiet"): ("discrete", "st_quiet"),
+    ("coil", "silence"): ("discrete", "st_silence"),
+}
+
 # Rejestry wielosłowowe (ASCII).
 WIDTH: Final = {("input", "model"): 8, ("input", "serial"): 8}
 
@@ -109,6 +125,17 @@ def addr(space: str, unit: int, key: str) -> int:
     """Adres na drucie dla jednego pola jednej jednostki."""
     table = {"coil": COIL, "discrete": DISCRETE, "input": INPUT, "holding": HOLDING}[space]
     return base(space, unit) + table[key]
+
+
+def locate(space: str, address: int) -> tuple[int, str] | None:
+    """Odwrotność addr(): adres na drucie -> (jednostka, pole)."""
+    table = {"coil": COIL, "discrete": DISCRETE, "input": INPUT, "holding": HOLDING}[space]
+    stride = STRIDE_BITS if space in ("coil", "discrete") else STRIDE_WORDS
+    unit, offset = divmod(address, stride)
+    for key, off in table.items():
+        if off == offset:
+            return unit + 1, key
+    return None
 
 
 def width(space: str, key: str) -> int:
@@ -143,10 +170,43 @@ def decode_ascii(words: list[int]) -> str:
 
     Manual nie zwraca wyjątku 0x07 dla nieobecnej jednostki - oddaje poprawną
     ramkę wypełnioną zerami. Nazwa modelu jest jedynym pewnym testem obecności.
+
+    Same 0xFF znaczą "pole nieobsługiwane": tak odpowiada numer seryjny na każdym
+    z trzech RAC I/F (zmierzone 2026-09-28). Dekodowane przez "replace" dawały
+    16 znaków U+FFFD, czyli niepusty tekst - więc bajty spoza drukowalnego ASCII
+    są odrzucane, a nie zastępowane.
     """
     raw = b"".join(int(w).to_bytes(2, "big") for w in words)
-    return raw.decode("ascii", "replace").replace("\x00", "").strip()
+    return "".join(chr(b) for b in raw if 0x20 <= b <= 0x7E).strip()
+
+
+# Tekst, który RAC I/F oddaje zamiast nazwy modelu, gdy jej nie zna. Zmierzone
+# 2026-09-28: jednostka 1 zwraca "RAS-B10N4KVRG-E1", jednostki 2 i 3 dokładnie to.
+# Obecność potwierdza (adapter odpowiada), ale modelem nie jest.
+PLACEHOLDER_MODELS: Final = frozenset({"RACIF Model Name"})
+
+# "Brak wartości" w rejestrze słowa. 0xFFFF przychodzi z instalacji jako moc
+# (30023) na wszystkich jednostkach; 0x8000 i 0x7FFF to skrajne wartości int16,
+# których żaden czujnik temperatury nie poda.
+NOT_AVAILABLE: Final = 0xFFFF
+TEMP_SENTINELS: Final = frozenset({0xFFFF, 0x8000, 0x7FFF})
 
 
 def signed(word: int) -> int:
     return word - 0x10000 if word >= 0x8000 else word
+
+
+def word_or_none(word: int | None) -> int | None:
+    """Słowo bez znaku, z 0xFFFF zamienionym na brak wartości."""
+    return None if word is None or word == NOT_AVAILABLE else word
+
+
+def tenths(word: int | None) -> float | None:
+    """Temperatura albo moc w dziesiątych częściach, ze znakiem.
+
+    Bez odsiewu 0xFFFF wychodzi -0.1 (signed), a 0x8000 -3276.8 - obie wartości
+    wyglądają w HA na prawdziwy pomiar.
+    """
+    if word is None or word in TEMP_SENTINELS:
+        return None
+    return signed(word) / 10

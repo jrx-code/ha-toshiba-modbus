@@ -79,8 +79,7 @@ class ToshibaClimate(ToshibaUnitEntity, ClimateEntity):
     # ------------------------------------------------------------------ odczyt
 
     def _scaled(self, space: str, key: str) -> float | None:
-        word = self.coordinator.word(self._unit, space, key)
-        return None if word is None else reg.signed(word) / 10
+        return reg.tenths(self.coordinator.word(self._unit, space, key))
 
     @property
     def current_temperature(self) -> float | None:
@@ -88,7 +87,10 @@ class ToshibaClimate(ToshibaUnitEntity, ClimateEntity):
 
     @property
     def target_temperature(self) -> float | None:
-        return self._scaled("holding", "setpoint")
+        # Status 30002, nie polecenie 40001. Rejestr polecenia trzyma to, co ostatnio
+        # zapisał Modbus - na instalacji 0 tam, gdzie nikt nie pisał, i starą wartość
+        # po zmianie z pilota. Zmierzone 2026-09-28: 40001 = 0 / 21.5, 30002 = 22 / 21.
+        return self._scaled("input", "setpoint")
 
     @property
     def hvac_mode(self) -> HVACMode | None:
@@ -134,8 +136,8 @@ class ToshibaClimate(ToshibaUnitEntity, ClimateEntity):
     @property
     def extra_state_attributes(self) -> dict[str, object]:
         c = self.coordinator
-        code = c.word(self._unit, "input", "check_code")
-        func = c.word(self._unit, "input", "func_status")
+        code = reg.word_or_none(c.word(self._unit, "input", "check_code"))
+        func = reg.word_or_none(c.word(self._unit, "input", "func_status"))
         attrs: dict[str, object] = {}
         if code is not None:
             attrs["kod_bledu"] = f"0x{code:04X}"

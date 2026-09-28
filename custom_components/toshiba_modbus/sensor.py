@@ -31,8 +31,12 @@ class ToshibaSensorDescription(SensorEntityDescription):
 
 
 def _tenths(c: ToshibaModbusCoordinator, u: int, space: str, key: str):
-    w = c.word(u, space, key)
-    return None if w is None else reg.signed(w) / 10
+    return reg.tenths(c.word(u, space, key))
+
+
+def _check_code(c: ToshibaModbusCoordinator, u: int):
+    code = reg.word_or_none(c.word(u, "input", "check_code"))
+    return None if code is None else reg.CHECK_CODES.get(code, f"0x{code:04X}")
 
 
 SENSORS: tuple[ToshibaSensorDescription, ...] = (
@@ -58,16 +62,14 @@ SENSORS: tuple[ToshibaSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.HOURS,
         state_class=SensorStateClass.TOTAL_INCREASING,
         entity_category=EntityCategory.DIAGNOSTIC,
-        convert=lambda c, u: c.word(u, "holding", "hours"),
+        # 0xFFFF zapisane w TOTAL_INCREASING zostałoby w statystykach na zawsze.
+        convert=lambda c, u: reg.word_or_none(c.word(u, "holding", "hours")),
     ),
     ToshibaSensorDescription(
         key="check_code", space="input", field="check_code",
         translation_key="check_code",
         entity_category=EntityCategory.DIAGNOSTIC,
-        convert=lambda c, u: (
-            None if c.word(u, "input", "check_code") is None
-            else reg.CHECK_CODES.get(c.word(u, "input", "check_code"), f"0x{c.word(u, 'input', 'check_code'):04X}")
-        ),
+        convert=_check_code,
     ),
     ToshibaSensorDescription(
         key="mode_status", space="input", field="mode",
@@ -94,13 +96,13 @@ SENSORS: tuple[ToshibaSensorDescription, ...] = (
         key="model", space="input", field="model",
         translation_key="model",
         entity_category=EntityCategory.DIAGNOSTIC,
-        convert=lambda c, u: c.text(u, "model"),
+        convert=lambda c, u: c.model(u),
     ),
     ToshibaSensorDescription(
         key="serial", space="input", field="serial",
         translation_key="serial",
         entity_category=EntityCategory.DIAGNOSTIC,
-        convert=lambda c, u: c.text(u, "serial"),
+        convert=lambda c, u: c.text(u, "serial") or None,
     ),
 )
 

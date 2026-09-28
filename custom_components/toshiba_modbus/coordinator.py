@@ -13,6 +13,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from pymodbus.client import AsyncModbusTcpClient
@@ -28,9 +29,11 @@ from .const import (
     CONF_UNITS,
     DEFAULT_DISCOVER_MAX,
     DEFAULT_RESCAN_INTERVAL,
+    DEFAULT_RETRIES,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TIMEOUT,
     FRAMING_RTUOVERTCP,
+    OPTIMISTIC_HOLD,
     SIGNAL_NEW_UNIT,
 )
 
@@ -45,6 +48,10 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
     The gateway does not correlate replies to TCP clients - a second master on
     the same serial line receives frames that answer someone else's request.
     One client, one lock, one master.
+
+    The lock is taken per frame, not per cycle. A full cycle is ~30 frames at
+    ~800 ms each, and a write that had to wait for the whole of it took 40-64 s
+    on the test instance; per frame it waits for at most one transaction.
     """
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -59,7 +66,11 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
         }
 
         self._client: AsyncModbusTcpClient | None = None
+        # Id urządzenia interfejsu w rejestrze HA, ustawiane w async_setup_entry.
+        self.hub_device_id: str | None = None
         self._lock = asyncio.Lock()
+        # (przestrzeń, adres) -> (wartość zapisana, wartość sprzed zapisu, termin).
+        self._optimistic: dict[tuple[str, int], tuple[int, int | None, float]] = {}
         self._plan = self._build_plan()
         self.frames_last = 0
         # Liczniki funkcji 0x08. Odpowiada na nie sam interfejs i nigdy nie schodzą
@@ -114,17 +125,37 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
 
     def _make_client(self) -> AsyncModbusTcpClient:
         framer = FramerType.RTU if self.framing == FRAMING_RTUOVERTCP else FramerType.SOCKET
+        # reconnect_delay=0: ponowne łączenie robi _get_client. Porzucony klient z
+        # własnym auto-reconnectem trzymałby gniazdo, a bramka ma ich mało.
         return AsyncModbusTcpClient(
-            host=self.host, port=self.port, framer=framer, timeout=DEFAULT_TIMEOUT
+            host=self.host, port=self.port, framer=framer,
+            timeout=DEFAULT_TIMEOUT, retries=DEFAULT_RETRIES, reconnect_delay=0,
         )
+
+    def _drop_client(self) -> None:
+        if self._client is not None:
+            self._client.close()
+        self._client = None
 
     async def _get_client(self) -> AsyncModbusTcpClient:
         if self._client is None or not self._client.connected:
+            self._drop_client()
             self._client = self._make_client()
             if not await self._client.connect():
-                self._client = None
+                self._drop_client()
                 raise UpdateFailed(f"Brak połączenia z bramką {self.host}:{self.port}")
         return self._client
+
+    async def _locked_read(self, space: str, start: int, count: int) -> list[int]:
+        """Jedna ramka pod blokadą. Błąd zamyka klienta, żeby następna ramka
+        zaczęła od czystego połączenia, a nie od odpowiedzi na cudze zapytanie."""
+        async with self._lock:
+            client = await self._get_client()
+            try:
+                return await self._read(client, space, start, count)
+            except Exception:
+                self._drop_client()
+                raise
 
     async def _read(self, client: AsyncModbusTcpClient, space: str, start: int, count: int) -> list[int]:
         call = {
@@ -139,26 +170,64 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
         return [int(b) for b in result.bits[:count]] if space in ("coil", "discrete") else list(result.registers)
 
     async def _async_update_data(self) -> dict[str, dict[int, int]]:
+        data: dict[str, dict[int, int]] = {s: {} for s in SPACES}
+        frames = 0
+        # Wpis bez jednostek nie wysyła żadnego bloku, a liczniki i skan połykają
+        # swoje błędy - bez tego martwa bramka dawała stan "loaded".
         async with self._lock:
-            client = await self._get_client()
-            data: dict[str, dict[int, int]] = {s: {} for s in SPACES}
-            frames = 0
+            await self._get_client()
+        try:
+            for space, start, count in list(self._plan):
+                values = await self._locked_read(space, start, count)
+                frames += 1
+                for i, value in enumerate(values):
+                    data[space][start + i] = value
+        except UpdateFailed:
+            raise
+        except Exception as err:  # noqa: BLE001
+            raise UpdateFailed(f"Błąd odczytu: {err}") from err
+        frames += await self._read_counters()
+        async with self._lock:
             try:
-                for space, start, count in self._plan:
-                    values = await self._read(client, space, start, count)
-                    frames += 1
-                    for i, value in enumerate(values):
-                        data[space][start + i] = value
-            except UpdateFailed:
-                self._client = None
-                raise
-            except Exception as err:  # noqa: BLE001
-                self._client = None
-                raise UpdateFailed(f"Błąd odczytu: {err}") from err
-            frames += await self._read_counters(client)
-            frames += await self._rescan_if_due(client, data)
-            self.frames_last = frames
-            return data
+                frames += await self._rescan_if_due(await self._get_client(), data)
+            except UpdateFailed as err:
+                _LOGGER.debug("skan pominięty: %s", err)
+        self.frames_last = frames
+        self._apply_optimistic(data)
+        return data
+
+    # ----------------------------------------------------------------- stan po zapisie
+
+    def _hold(self, space: str, address: int, value: int) -> None:
+        """Pokazuje zapisaną wartość od razu, zanim wróci z magistrali."""
+        if self.data is None:
+            return
+        before = self.data[space].get(address)
+        self._optimistic[(space, address)] = (value, before, time.monotonic() + OPTIMISTIC_HOLD)
+        self.data[space][address] = value
+
+    def _apply_optimistic(self, data: dict[str, dict[int, int]]) -> None:
+        """Odczyt wygrywa, gdy potwierdził zapis, gdy pokazał cokolwiek innego niż
+        stan sprzed zapisu (zmiana z pilota albo tryb auto zgłoszony jako 5 lub 6),
+        albo gdy minął termin. Do tego czasu stary stan nie wraca na ekran."""
+        now = time.monotonic()
+        for key, (value, before, until) in list(self._optimistic.items()):
+            space, address = key
+            polled = data[space].get(address)
+            if now > until or polled is None or polled == value or polled != before:
+                del self._optimistic[key]
+            else:
+                data[space][address] = value
+
+    def _hold_after_write(self, space: str, address: int, value: int) -> None:
+        self._hold(space, address, value)
+        where = reg.locate(space, address)
+        if where is not None:
+            unit, key = where
+            status = reg.WRITE_STATUS.get((space, key))
+            if status is not None:
+                self._hold(status[0], reg.addr(status[0], unit, status[1]), value)
+        self.async_update_listeners()
 
     def _unknown_addresses(self) -> list[int]:
         return [
@@ -244,50 +313,57 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
             await self._rescan_if_due(client, force=True)
         await self.async_request_refresh()
 
-    async def _read_counters(self, client: AsyncModbusTcpClient) -> int:
+    async def _read_counters(self) -> int:
         """Diagnostyka interfejsu. Błąd tutaj nie może wywalić całego odczytu -
         liczniki są dodatkiem, a nie powodem, dla którego encje mają zniknąć."""
         calls = (
-            ("bus_messages", client.diag_read_bus_message_count),
-            ("bus_errors", client.diag_read_bus_comm_error_count),
-            ("device_messages", client.diag_read_device_message_count),
+            ("bus_messages", "diag_read_bus_message_count"),
+            ("bus_errors", "diag_read_bus_comm_error_count"),
+            ("device_messages", "diag_read_device_message_count"),
         )
         frames = 0
-        for name, call in calls:
-            try:
-                result = await call(device_id=self.slave)
-                frames += 1
-                self.counters[name] = None if result.isError() else int(result.message)
-            except Exception as err:  # noqa: BLE001
-                _LOGGER.debug("licznik %s niedostępny: %s", name, err)
-                self.counters[name] = None
+        for name, method in calls:
+            async with self._lock:
+                try:
+                    client = await self._get_client()
+                    result = await getattr(client, method)(device_id=self.slave)
+                    frames += 1
+                    self.counters[name] = None if result.isError() else int(result.message)
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.debug("licznik %s niedostępny: %s", name, err)
+                    self.counters[name] = None
+                    self._drop_client()
         return frames
 
     # ----------------------------------------------------------------- zapis
 
-    async def async_write_register(self, address: int, value: int) -> None:
+    async def _write(self, what: str, method: str, address: int, value) -> None:
+        """Zapis pod blokadą jednej ramki. Błąd idzie do użytkownika jako
+        HomeAssistantError - UpdateFailed w akcji usługi niczego mu nie mówi."""
         async with self._lock:
-            client = await self._get_client()
-            result = await client.write_register(address=address, value=value, device_id=self.slave)
+            try:
+                client = await self._get_client()
+                result = await getattr(client, method)(
+                    address=address, value=value, device_id=self.slave)
+            except Exception as err:  # noqa: BLE001
+                self._drop_client()
+                raise HomeAssistantError(f"Zapis {what} {address}: {err}") from err
             if result.isError():
-                self._client = None
-                raise UpdateFailed(f"Zapis rejestru {address}: {result}")
+                raise HomeAssistantError(f"Zapis {what} {address}: {result}")
+
+    async def async_write_register(self, address: int, value: int) -> None:
+        await self._write("rejestru", "write_register", address, value)
+        self._hold_after_write("holding", address, value)
         await self.async_request_refresh()
 
     async def async_write_coil(self, address: int, value: bool) -> None:
-        async with self._lock:
-            client = await self._get_client()
-            result = await client.write_coil(address=address, value=value, device_id=self.slave)
-            if result.isError():
-                self._client = None
-                raise UpdateFailed(f"Zapis cewki {address}: {result}")
+        await self._write("cewki", "write_coil", address, value)
+        self._hold_after_write("coil", address, int(bool(value)))
         await self.async_request_refresh()
 
     async def async_close(self) -> None:
         async with self._lock:
-            if self._client is not None and self._client.connected:
-                self._client.close()
-            self._client = None
+            self._drop_client()
 
     # ----------------------------------------------------------------- odczyt pól
 
@@ -311,6 +387,12 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
         """Jednostka nieobecna oddaje poprawną ramkę zer, nie wyjątek."""
         return bool(self.text(unit, "model"))
 
+    def model(self, unit: int) -> str | None:
+        """Nazwa modelu bez tekstu zastępczego adaptera. Obecność liczy się z
+        present() - "RACIF Model Name" też znaczy, że adapter odpowiada."""
+        text = self.text(unit, "model")
+        return None if not text or text in reg.PLACEHOLDER_MODELS else text
+
     def unit_name(self, unit: int) -> str:
         return self.names.get(unit) or f"Unit {unit}"
 
@@ -327,5 +409,6 @@ class ToshibaModbusCoordinator(DataUpdateCoordinator[dict[str, dict[int, int]]])
             "excluded": self.excluded,
             "frames_last": self.frames_last,
             "counters": dict(self.counters),
+            "optimistic": len(self._optimistic),
             "plan": [{"space": s, "start": a, "count": c} for s, a, c in self._plan],
         }

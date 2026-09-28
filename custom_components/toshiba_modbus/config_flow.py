@@ -21,7 +21,7 @@ from . import registers as reg
 from .const import (
     CONF_DISCOVER_MAX, CONF_EXCLUDED, CONF_FRAMING, CONF_RESCAN_INTERVAL, CONF_SCAN_INTERVAL,
     CONF_SLAVE, CONF_UNITS, DEFAULT_DISCOVER_MAX, DEFAULT_PORT,
-    DEFAULT_RESCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DEFAULT_SLAVE, DEFAULT_TIMEOUT,
+    DEFAULT_RESCAN_INTERVAL, DEFAULT_RETRIES, DEFAULT_SCAN_INTERVAL, DEFAULT_SLAVE, DEFAULT_TIMEOUT,
     DOMAIN, FRAMING_RTUOVERTCP, FRAMINGS,
 )
 
@@ -72,7 +72,8 @@ async def _discover(
     gnieździe to ramkowanie, adres slave albo drugi master na tej samej linii.
     """
     framer = FramerType.RTU if framing == FRAMING_RTUOVERTCP else FramerType.SOCKET
-    client = AsyncModbusTcpClient(host=host, port=port, framer=framer, timeout=DEFAULT_TIMEOUT)
+    client = AsyncModbusTcpClient(host=host, port=port, framer=framer,
+                                  timeout=DEFAULT_TIMEOUT, retries=DEFAULT_RETRIES)
     if not await client.connect():
         raise ConnectionError(f"nic nie nasłuchuje na {host}:{port}")
     found: dict[int, tuple[str, str]] = {}

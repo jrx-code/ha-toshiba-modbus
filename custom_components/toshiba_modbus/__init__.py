@@ -29,9 +29,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
-    # Interfejs Modbus jako urządzenie nadrzędne - jednostki wiszą pod nim przez via_device.
+    # Interfejs Modbus jako urządzenie nadrzędne - jednostki wiszą pod nim przez
+    # via_device_id. Sam klucz via_device HA oznaczył jako przestarzały (koniec w 2027.8).
     registry = dr.async_get(hass)
-    registry.async_get_or_create(
+    hub = registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, entry.entry_id)},
         manufacturer=MANUFACTURER,
@@ -39,6 +40,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         name=f"Interfejs Modbus ({coordinator.host})",
         configuration_url=f"http://{coordinator.host}",
     )
+    coordinator.hub_device_id = hub.id
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_reload))

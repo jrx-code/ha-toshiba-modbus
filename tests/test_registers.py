@@ -72,3 +72,36 @@ def test_no_block_exceeds_the_measured_read_limit():
             for start, count in reg.blocks_for_unit(space, unit):
                 if space in ("input", "holding"):
                     assert count <= reg.MAX_READ_LEN, f"{space} {start}+{count}"
+
+
+def test_all_ff_text_is_empty():
+    """Numer seryjny z samych 0xFF (wszystkie RAC I/F na instalacji) to brak pola,
+    nie 16 znakow U+FFFD."""
+    assert reg.decode_ascii([0xFFFF] * 8) == ""
+    assert reg.decode_ascii([0] * 8) == ""
+    words = [int.from_bytes(b"RAS-B10N4KVRG-E1"[i:i + 2], "big") for i in range(0, 16, 2)]
+    assert reg.decode_ascii(words) == "RAS-B10N4KVRG-E1"
+
+
+def test_sentinels_are_not_measurements():
+    """0xFFFF jako moc dawalo -0.1 kW, 0x8000 jako temperatura -3276.8 C."""
+    for word in (0xFFFF, 0x8000, 0x7FFF, None):
+        assert reg.tenths(word) is None
+    assert reg.tenths(230) == 23.0
+    assert reg.tenths(0xFFF6) == -1.0
+    assert reg.word_or_none(0xFFFF) is None
+    assert reg.word_or_none(0) == 0
+
+
+def test_locate_inverts_addr():
+    for space, table in (("coil", reg.COIL), ("discrete", reg.DISCRETE),
+                         ("input", reg.INPUT), ("holding", reg.HOLDING)):
+        for unit in (1, 2, 3):
+            for key in table:
+                assert reg.locate(space, reg.addr(space, unit, key)) == (unit, key)
+
+
+def test_write_status_targets_exist():
+    for (space, key), (sspace, skey) in reg.WRITE_STATUS.items():
+        reg.addr(space, 1, key)
+        reg.addr(sspace, 1, skey)
