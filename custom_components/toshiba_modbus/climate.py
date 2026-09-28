@@ -8,7 +8,6 @@ from __future__ import annotations
 from homeassistant.components.climate import (
     ClimateEntity,
     ClimateEntityFeature,
-    HVACAction,
     HVACMode,
 )
 from homeassistant.config_entries import ConfigEntry
@@ -98,27 +97,6 @@ class ToshibaClimate(ToshibaUnitEntity, ClimateEntity):
             return HVACMode.OFF
         word = self.coordinator.word(self._unit, "input", "mode")
         return READ_TO_HVAC.get(word) if word is not None else None
-
-    @property
-    def hvac_action(self) -> HVACAction | None:
-        """Bit sprężarki (10004) mówi, czy jednostka faktycznie grzeje lub chłodzi."""
-        if not self.coordinator.bit(self._unit, "discrete", "onoff"):
-            return HVACAction.OFF
-        thermo = self.coordinator.bit(self._unit, "discrete", "thermo")
-        if thermo is None:
-            return None
-        if not thermo:
-            return HVACAction.IDLE
-        mode = self.hvac_mode
-        if mode == HVACMode.HEAT:
-            return HVACAction.HEATING
-        if mode == HVACMode.COOL:
-            return HVACAction.COOLING
-        if mode == HVACMode.DRY:
-            return HVACAction.DRYING
-        if mode == HVACMode.FAN_ONLY:
-            return HVACAction.FAN
-        return HVACAction.IDLE
 
     @property
     def fan_mode(self) -> str | None:

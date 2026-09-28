@@ -103,9 +103,6 @@
       "alarm": {
         "name": "Alarm"
       },
-      "thermo": {
-        "name": "Sprężarka"
-      },
       "st_pure_filter": {
         "name": "Pure Filter"
       },

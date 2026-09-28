@@ -34,8 +34,6 @@ BINARY_SENSORS: tuple[ToshibaBinaryDescription, ...] = (
                              entity_category=EntityCategory.DIAGNOSTIC),
     ToshibaBinaryDescription(key="alarm", field="alarm", translation_key="alarm",
                              device_class=BinarySensorDeviceClass.PROBLEM),
-    ToshibaBinaryDescription(key="thermo", field="thermo", translation_key="thermo",
-                             device_class=BinarySensorDeviceClass.RUNNING),
     ToshibaBinaryDescription(key="st_pure_filter", field="st_pure_filter",
                              translation_key="st_pure_filter",
                              entity_category=EntityCategory.DIAGNOSTIC),

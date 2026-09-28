@@ -77,6 +77,8 @@ COIL: Final = {
     "onoff": 0, "filter_reset": 1,
     "hi_power": 57, "eco": 58, "quiet": 59, "silence": 60,
 }
+# "thermo" (10004) stays in the map for the emulator and the panel, but a RAC interface
+# never sets it: service manual rev. 7, 7-4 leaves thermo status off the RAC list.
 DISCRETE: Final = {
     "onoff": 0, "filter_sign": 1, "alarm": 2, "thermo": 3,
     "st_pure_filter": 80, "st_hi_power": 81, "st_eco": 82, "st_quiet": 83, "st_silence": 84,

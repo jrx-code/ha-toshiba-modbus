@@ -119,14 +119,15 @@ A unit found this way is read once immediately, then its device and entities are
 
 ## Entities per indoor unit
 
-- `climate` — power, setpoint (17–30 °C, 0.5 °C), mode, fan, swing, plus `hvac_action`
-  derived from the compressor bit, and the check code as an attribute
+- `climate` — power, setpoint (17–30 °C, 0.5 °C), mode, fan, swing, and the check code
+  as an attribute. There is no `hvac_action`: a RAC interface does not report the
+  thermo (compressor) bit, so nothing says whether the unit is actually cooling
 - `select` — power limit (Save)
 - `switch` — Hi-Power, ECO, Quiet FCU, Silence CDU, and six remote-controller lock bits
 - `button` — reset the filter sign
 - `sensor` — setpoint readback, capacity, operating hours, check code, mode/fan/louver
   readback, model, serial number
-- `binary_sensor` — power, filter, alarm, compressor, and the five RAC function statuses
+- `binary_sensor` — power, filter, alarm, and the five RAC function statuses
 
 Special-function switches disable themselves when register `30059` says the unit
 does not support them. Every entity is enabled by default; the ones that mainly

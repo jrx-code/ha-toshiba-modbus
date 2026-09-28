@@ -54,8 +54,13 @@ Remotes: `origin` = Forgejo, `github` = public mirror.
 - **Writes show at once and are confirmed by the poll.** The interface needs a poll
   cycle before the status registers change, so the written value is held over the data
   until a read confirms it, contradicts it, or 60 s pass.
-- **`hvac_action` comes from the compressor bit** (`10004`), not from the mode
-  register. Mode says what was asked for, the bit says what the unit is doing.
+- **A RAC interface never sets the thermo bit** (`10004`). The service manual (rev. 7,
+  section 7-4) leaves "Thermo status" off both RAC function lists, and on the installed
+  units it stayed 0 through a whole day of cooling, including a room pulled from 23 to
+  18 °C. Up to 0.4.0 `hvac_action` and a "Compressor" sensor were built on it and showed
+  idle while the unit cooled; 0.4.1 removed both. The address stays in the map because
+  the emulator and the panel parity test use it. Do not bring `hvac_action` back from the
+  mode register: mode says what was asked for, not what the unit is doing.
 - **Zero indoor units is a valid config entry.** The interface answers while the Uh bus
   is empty, which is exactly the state before the adapters are fitted. Refusing the entry
   there means the interface cannot be added until an installer has been on site.

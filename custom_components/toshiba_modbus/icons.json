@@ -21,7 +21,6 @@
       "power": { "default": "mdi:power-standby", "state": { "on": "mdi:power" } },
       "filter_sign": { "default": "mdi:air-filter" },
       "alarm": { "default": "mdi:shield-check-outline", "state": { "on": "mdi:alert" } },
-      "thermo": { "default": "mdi:pump-off", "state": { "on": "mdi:pump" } },
       "st_pure_filter": { "default": "mdi:air-purifier-off", "state": { "on": "mdi:air-purifier" } },
       "st_hi_power": { "default": "mdi:rocket-launch-outline" },
       "st_eco": { "default": "mdi:leaf" },
