@@ -118,7 +118,9 @@ Remotes: `origin` = Forgejo, `github` = public mirror.
   browser cache holds the old one. The slot map is in the README; the one that surprises
   is the badge in the corner of a device page, which takes `logo.png`, not the icon. When
   `logo.png` is missing HA serves the bytes of `icon.png` under that name, so the two look
-  identical and the difference stays invisible until both exist.
+  identical and the difference stays invisible until both exist. Sizes follow the
+  `home-assistant/brands` spec: logos trimmed to the artwork, shortest side 128-256 px
+  (`@2x` 256-512 px) and the same composition in both; icons exactly 256 and 512 square.
 - **Test on the spare HA instance first, never on the production one.** The deploy path
   there is the SSH add-on with a password, which needs `-o PubkeyAuthentication=no`
   because `Host *` in the local ssh config disables password auth. Addresses are in the
